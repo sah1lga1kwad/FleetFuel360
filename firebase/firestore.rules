@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can only read/write their own user doc
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Company: members can read, only manager can write
+    match /companies/{companyId} {
+      allow read: if request.auth != null &&
+                  (request.auth.uid in resource.data.memberDriverIds
+                   || request.auth.uid == resource.data.managerId);
+      allow create: if request.auth != null &&
+                    request.resource.data.managerId == request.auth.uid;
+      allow update: if request.auth != null &&
+                    (
+                      // Manager full control
+                      request.auth.uid == resource.data.managerId
+                      ||
+                      // Driver self-join: can only append own UID to memberDriverIds.
+                      (
+                        request.resource.data.diff(resource.data).changedKeys()
+                          .hasOnly(['memberDriverIds', 'updatedAt']) &&
+                        request.resource.data.memberDriverIds
+                          .hasAll(resource.data.memberDriverIds) &&
+                        request.resource.data.memberDriverIds.size() ==
+                          resource.data.memberDriverIds.size() + 1 &&
+                        request.auth.uid in request.resource.data.memberDriverIds &&
+                        !(request.auth.uid in resource.data.memberDriverIds)
+                      )
+                    );
+      allow delete: if false;
+    }
+
+    // Logs: driver can CRUD their own logs
+    match /logs/{logId} {
+      allow read: if request.auth != null &&
+                  (request.auth.uid == resource.data.driverId
+                   || isManagerOfCompany(resource.data.companyId));
+      allow create: if request.auth != null &&
+                    request.auth.uid == request.resource.data.driverId;
+      allow update: if request.auth != null &&
+                    request.auth.uid == resource.data.driverId;
+      allow delete: if false; // Soft delete only via status field
+    }
+
+    // Location pings: driver write own, manager read all in company
+    match /locationPings/{pingId} {
+      allow create: if request.auth != null &&
+                    request.auth.uid == request.resource.data.driverId;
+      allow read: if request.auth != null &&
+                  (request.auth.uid == resource.data.driverId
+                   || isManagerOfCompany(resource.data.companyId));
+    }
+
+    // Vehicles: company members read, manager write
+    match /vehicles/{vehicleId} {
+      allow read: if request.auth != null &&
+                  isCompanyMember(resource.data.companyId);
+      allow write: if request.auth != null &&
+                   isManagerOfCompany(resource.data.companyId);
+    }
+
+    match /vehicleAssignments/{assignmentId} {
+      allow read: if request.auth != null &&
+                  isCompanyMember(resource.data.companyId);
+      allow write: if request.auth != null &&
+                   isManagerOfCompany(resource.data.companyId);
+    }
+
+    function isManagerOfCompany(companyId) {
+      return get(/databases/$(database)/documents/companies/$(companyId)).data.managerId
+             == request.auth.uid;
+    }
+
+    function isCompanyMember(companyId) {
+      let company = get(/databases/$(database)/documents/companies/$(companyId)).data;
+      return request.auth.uid in company.memberDriverIds
+             || company.managerId == request.auth.uid;
+    }
+  }
+}

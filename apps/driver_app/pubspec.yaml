@@ -1,0 +1,83 @@
+name: driver_app
+description: FleetFuel360 Drivers - Fuel and expense tracking for fleet drivers
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Shared package
+  fleetfuel_core:
+    path: ../../packages/fleetfuel_core
+
+  # Firebase
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.4.4
+  firebase_storage: ^12.3.6
+  firebase_messaging: ^15.1.4
+  firebase_app_check: ^0.3.2+6
+
+  # Google Sign-In
+  google_sign_in: ^6.2.1
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+
+  # Navigation
+  go_router: ^14.2.7
+
+  # Background GPS
+  flutter_background_geolocation: ^4.17.0
+
+  # Maps & Location
+  google_maps_flutter: ^2.9.0
+  geolocator: ^13.0.2
+  geocoding: ^3.0.0
+
+  # Local Database
+  isar: ^3.1.0+1
+  isar_flutter_libs: ^3.1.0+1
+  path_provider: ^2.1.4
+
+  # Images
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
+  cached_network_image: ^3.4.1
+
+  # Connectivity & Device
+  connectivity_plus: ^6.0.5
+  device_info_plus: ^10.1.2
+  battery_plus: ^6.0.3
+  permission_handler: ^11.3.1
+  shared_preferences: ^2.3.2
+
+  # UI
+  google_fonts: ^6.2.1
+  shimmer: ^3.0.0
+  lottie: ^3.1.2
+  intl: ^0.19.0
+  cupertino_icons: ^1.0.8
+
+  # Utils
+  uuid: ^4.4.0
+  package_info_plus: ^8.0.2
+  url_launcher: ^6.3.0
+  share_plus: ^10.0.0
+  crypto: ^3.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.12
+  isar_generator: ^3.1.0+1
+  freezed: ^2.5.2
+  json_serializable: ^6.8.0
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
