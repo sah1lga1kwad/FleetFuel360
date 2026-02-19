@@ -45,16 +45,50 @@ class LocationPingModel with _$LocationPingModel {
 
   factory LocationPingModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final location = data['location'] is Map<String, dynamic>
+        ? data['location'] as Map<String, dynamic>
+        : data['location'] is Map
+            ? Map<String, dynamic>.from(data['location'] as Map)
+            : const <String, dynamic>{};
+    final deviceContext = data['deviceContext'] is Map<String, dynamic>
+        ? data['deviceContext'] as Map<String, dynamic>
+        : data['deviceContext'] is Map
+            ? Map<String, dynamic>.from(data['deviceContext'] as Map)
+            : const <String, dynamic>{};
+
+    double asDouble(Object? value) {
+      if (value is num) return value.toDouble();
+      return 0.0;
+    }
+
+    int asInt(Object? value) {
+      if (value is num) return value.round();
+      return 0;
+    }
+
     return LocationPingModel.fromJson({
       ...data,
       'pingId': doc.id,
+      'latitude': asDouble(location['latitude'] ?? data['latitude']),
+      'longitude': asDouble(location['longitude'] ?? data['longitude']),
+      'accuracy': asDouble(location['accuracy'] ?? data['accuracy']),
+      'altitude': asDouble(location['altitude'] ?? data['altitude']),
+      'speed': asDouble(location['speed'] ?? data['speed']),
+      'bearing': asDouble(location['bearing'] ?? data['bearing']),
+      'geohash': (location['geohash'] ?? data['geohash'] ?? '').toString(),
+      'batteryLevel':
+          asInt(deviceContext['batteryLevel'] ?? data['batteryLevel']),
+      'isCharging':
+          (deviceContext['isCharging'] ?? data['isCharging'] ?? false) == true,
+      'networkType':
+          (deviceContext['networkType'] ?? data['networkType'] ?? 'none')
+              .toString(),
       'recordedAt':
           (data['recordedAt'] as Timestamp).toDate().toIso8601String(),
       'syncedAt': data['syncedAt'] != null
           ? (data['syncedAt'] as Timestamp).toDate().toIso8601String()
           : null,
-      'createdAt':
-          (data['createdAt'] as Timestamp).toDate().toIso8601String(),
+      'createdAt': (data['createdAt'] as Timestamp).toDate().toIso8601String(),
     });
   }
 }

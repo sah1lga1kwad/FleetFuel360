@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart'
     as bg;
 import 'package:go_router/go_router.dart';
+import 'package:isar/isar.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:fleetfuel_core/fleetfuel_core.dart';
@@ -54,14 +55,38 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         _showError('User not found. Please log in again.');
         return;
       }
+      final companyId = user.companyId;
+      if (companyId == null || companyId.isEmpty) {
+        _showError('You must join a company before submitting logs.');
+        return;
+      }
+
+      final assignment = await ref
+          .read(firestoreServiceProvider)
+          .getActiveAssignment(user.userId, companyId: companyId);
+      final contexts = await isar.driverContexts.where().findAll();
+      contexts.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      final latestContext = contexts.isEmpty ? null : contexts.first;
+      final resolvedVehicleId = vehicle?.vehicleId ??
+          assignment?.vehicleId ??
+          latestContext?.vehicleId ??
+          '';
+      final resolvedAssignmentId =
+          assignment?.assignmentId ?? latestContext?.assignmentId ?? '';
+
+      if (resolvedVehicleId.isEmpty || resolvedAssignmentId.isEmpty) {
+        _showError(
+          'No active vehicle assignment found. Please contact your manager.',
+        );
+        return;
+      }
 
       // Capture GPS — extract to flat non-nullable locals
       final position = await _getLocation();
       final lat = position?.coords.latitude ?? 0.0;
       final lng = position?.coords.longitude ?? 0.0;
       final acc = position?.coords.accuracy ?? 0.0;
-      final geo =
-          position != null ? Geohash.encode(lat, lng) : '';
+      final geo = position != null ? Geohash.encode(lat, lng) : '';
 
       setState(() => _statusMessage = 'Saving log...');
 
@@ -71,10 +96,10 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
 
       final localLog = LocalLog()
         ..localId = logId
-        ..companyId = user.companyId ?? ''
+        ..companyId = companyId
         ..driverId = user.userId
-        ..vehicleId = vehicle?.vehicleId ?? ''
-        ..assignmentId = ''
+        ..vehicleId = resolvedVehicleId
+        ..assignmentId = resolvedAssignmentId
         ..logType = flow.logType?.name ?? LogType.other.name
         ..category = flow.category.name
         ..amount = flow.amount
@@ -117,6 +142,17 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
       // Save to Isar
       await isar.writeTxn(() async {
         await isar.localLogs.put(localLog);
+        final existing = await isar.driverContexts
+            .filter()
+            .driverIdEqualTo(user.userId)
+            .findFirst();
+        final context = existing ?? DriverContext();
+        context.driverId = user.userId;
+        context.companyId = companyId;
+        context.vehicleId = resolvedVehicleId;
+        context.assignmentId = resolvedAssignmentId;
+        context.updatedAt = now;
+        await isar.driverContexts.put(context);
       });
 
       setState(() => _statusMessage = 'Syncing...');
@@ -364,13 +400,31 @@ class _TypeBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color, icon) = switch (logType) {
-      LogType.fuelFill => ('Fuel Fill', AppColors.fuel, Icons.local_gas_station),
-      LogType.cashExpense =>
-        ('Cash Expense', AppColors.expense, Icons.receipt_long),
-      LogType.paymentReceived =>
-        ('Payment Received', AppColors.income, Icons.payments),
-      LogType.advance => ('Advance', AppColors.primary, Icons.account_balance_wallet),
-      LogType.loan => ('Loan / Credit', AppColors.warning, Icons.handshake_outlined),
+      LogType.fuelFill => (
+          'Fuel Fill',
+          AppColors.fuel,
+          Icons.local_gas_station
+        ),
+      LogType.cashExpense => (
+          'Cash Expense',
+          AppColors.expense,
+          Icons.receipt_long
+        ),
+      LogType.paymentReceived => (
+          'Payment Received',
+          AppColors.income,
+          Icons.payments
+        ),
+      LogType.advance => (
+          'Advance',
+          AppColors.primary,
+          Icons.account_balance_wallet
+        ),
+      LogType.loan => (
+          'Loan / Credit',
+          AppColors.warning,
+          Icons.handshake_outlined
+        ),
       _ => ('Other', AppColors.neutral, Icons.notes),
     };
 
@@ -387,9 +441,7 @@ class _TypeBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Text(label,
               style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16)),
+                  color: color, fontWeight: FontWeight.w700, fontSize: 16)),
         ],
       ),
     );
@@ -460,15 +512,13 @@ class _DetailRow extends StatelessWidget {
           SizedBox(
             width: 120,
             child: Text(label,
-                style: const TextStyle(
-                    color: AppColors.neutral, fontSize: 13)),
+                style: const TextStyle(color: AppColors.neutral, fontSize: 13)),
           ),
           Expanded(
             child: Text(
               value,
               style: valueStyle ??
-                  const TextStyle(
-                      fontWeight: FontWeight.w500, fontSize: 13),
+                  const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
             ),
           ),
         ],

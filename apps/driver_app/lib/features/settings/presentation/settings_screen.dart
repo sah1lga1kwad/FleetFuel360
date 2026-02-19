@@ -8,6 +8,7 @@ import 'package:fleetfuel_core/fleetfuel_core.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../tracking/background_location_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -17,7 +18,8 @@ class SettingsScreen extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final vehicle = ref.watch(assignedVehicleProvider);
     final authService = ref.read(authServiceProvider);
-    final permissionStatus = ref.watch(trackingPermissionStatusProvider).valueOrNull;
+    final permissionStatus =
+        ref.watch(trackingPermissionStatusProvider).valueOrNull;
     final trackingEnabled = ref.watch(trackingEnabledProvider);
     final trackingDiagnosticsAsync = ref.watch(trackingDiagnosticsProvider);
 
@@ -65,8 +67,9 @@ class SettingsScreen extends ConsumerWidget {
                     : 'Permission required'),
             trailing: Switch(
               value: trackingEnabled,
-              onChanged: (value) =>
-                  ref.read(trackingEnabledAsyncProvider.notifier).setEnabled(value),
+              onChanged: (value) => ref
+                  .read(trackingEnabledAsyncProvider.notifier)
+                  .setEnabled(value),
             ),
             onTap: null,
           ),
@@ -116,6 +119,16 @@ class SettingsScreen extends ConsumerWidget {
 
           // Account
           _SectionHeader(title: 'Account'),
+          _SettingsTile(
+            icon: Icons.swap_horiz_outlined,
+            title: 'Change Company',
+            subtitle: user?.companyCode.isNotEmpty == true
+                ? 'Current code: ${user!.companyCode}'
+                : 'Leave current company and join another',
+            onTap: user == null
+                ? null
+                : () => _confirmChangeCompany(context, ref, user),
+          ),
           _SettingsTile(
             icon: Icons.privacy_tip_outlined,
             title: 'Privacy Policy',
@@ -171,6 +184,71 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _confirmChangeCompany(
+    BuildContext context,
+    WidgetRef ref,
+    UserModel user,
+  ) async {
+    final shouldChange = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Change Company'),
+        content: const Text(
+          'This will remove you from your current company, stop tracking, and clear local offline logs/pings from this company on this device.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Continue',
+              style: TextStyle(color: AppColors.warning),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldChange != true) return;
+
+    try {
+      final firestoreService = ref.read(firestoreServiceProvider);
+      final isar = ref.read(isarProvider);
+
+      await resetTrackingStateForCompanySwitch();
+      await isar.writeTxn(() async {
+        await isar.localLogs.clear();
+        await isar.localLocationPings.clear();
+        await isar.driverContexts.clear();
+      });
+
+      if (user.companyId != null && user.companyId!.isNotEmpty) {
+        await firestoreService.removeDriverFromCompany(
+            user.companyId!, user.userId);
+      }
+      await firestoreService.updateUser(user.userId, {
+        'companyId': null,
+        'companyCode': '',
+      });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Company changed. Join a new company.')),
+        );
+        GoRouter.of(context).go('/company-join');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to change company: $e')),
+        );
+      }
+    }
+  }
 }
 
 class _ProfileCard extends StatelessWidget {
@@ -195,9 +273,8 @@ class _ProfileCard extends StatelessWidget {
                         width: 64,
                         height: 64,
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) =>
-                            const Icon(Icons.person,
-                                size: 32, color: AppColors.primary),
+                        errorWidget: (_, __, ___) => const Icon(Icons.person,
+                            size: 32, color: AppColors.primary),
                       ),
                     )
                   : const Icon(Icons.person,
@@ -314,7 +391,9 @@ class _PermissionHealthCard extends StatelessWidget {
 
     final Color accent = allGranted
         ? AppColors.income
-        : (locationOk || notificationOk ? AppColors.warning : AppColors.expense);
+        : (locationOk || notificationOk
+            ? AppColors.warning
+            : AppColors.expense);
     final String headline = allGranted
         ? 'Permission Health: Healthy'
         : (locationOk || notificationOk
@@ -337,7 +416,9 @@ class _PermissionHealthCard extends StatelessWidget {
           Row(
             children: [
               Icon(
-                allGranted ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                allGranted
+                    ? Icons.verified_rounded
+                    : Icons.warning_amber_rounded,
                 color: accent,
               ),
               const SizedBox(width: 8),
@@ -463,7 +544,8 @@ class _TrackingDiagnosticsCard extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
               ),
               const SizedBox(height: 10),
-              _DiagRow(label: 'Service Running', value: d.running ? 'Yes' : 'No'),
+              _DiagRow(
+                  label: 'Service Running', value: d.running ? 'Yes' : 'No'),
               _DiagRow(
                 label: 'Pending Pings (Local)',
                 value: d.pendingPingCount.toString(),
@@ -472,7 +554,8 @@ class _TrackingDiagnosticsCard extends StatelessWidget {
                 label: 'Synced Pings (Local)',
                 value: d.syncedPingCount.toString(),
               ),
-              _DiagRow(label: 'Last Captured Ping', value: _fmt(d.lastCapturedAt)),
+              _DiagRow(
+                  label: 'Last Captured Ping', value: _fmt(d.lastCapturedAt)),
               _DiagRow(label: 'Last Synced Ping', value: _fmt(d.lastSyncedAt)),
               _DiagRow(
                 label: 'Last Error',
@@ -590,8 +673,7 @@ class _SettingsTile extends StatelessWidget {
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
         subtitle: subtitle != null
             ? Text(subtitle!,
-                style: const TextStyle(
-                    color: AppColors.neutral, fontSize: 12))
+                style: const TextStyle(color: AppColors.neutral, fontSize: 12))
             : null,
         trailing: trailing ??
             (onTap != null

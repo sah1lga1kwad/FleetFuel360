@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:isar/isar.dart';
 
+import '../models/local/driver_context.dart';
 import '../models/local/local_log.dart';
 import '../models/local/local_location_ping.dart';
 import '../models/log_model.dart';
@@ -105,8 +106,7 @@ class SyncService {
         }
       }
 
-      if (localLog.localReceiptImagePaths.isNotEmpty &&
-          receiptUrls.isEmpty) {
+      if (localLog.localReceiptImagePaths.isNotEmpty && receiptUrls.isEmpty) {
         try {
           receiptUrls = await _storageService.uploadMultipleImages(
             localLog.localReceiptImagePaths,
@@ -220,14 +220,36 @@ class SyncService {
     var vehicleId = '';
     var assignmentId = '';
 
-    if (authUid.isNotEmpty) {
-      final user = await _firestoreService.getUser(authUid);
-      companyId = user?.companyId ?? '';
+    final contexts = await _isar.driverContexts.where().findAll();
+    contexts.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final latestContext = contexts.isEmpty ? null : contexts.first;
+    if (latestContext != null) {
+      if (driverId.isEmpty && latestContext.driverId.isNotEmpty) {
+        driverId = latestContext.driverId;
+      }
+      if (latestContext.companyId.isNotEmpty) {
+        companyId = latestContext.companyId;
+      }
+      if (latestContext.vehicleId.isNotEmpty) {
+        vehicleId = latestContext.vehicleId;
+      }
+      if (latestContext.assignmentId.isNotEmpty) {
+        assignmentId = latestContext.assignmentId;
+      }
+    }
 
-      final assignment = await _firestoreService.getActiveAssignment(authUid);
+    if (authUid.isNotEmpty &&
+        (companyId.isEmpty || vehicleId.isEmpty || assignmentId.isEmpty)) {
+      final user = await _firestoreService.getUser(authUid);
+      companyId = companyId.isNotEmpty ? companyId : (user?.companyId ?? '');
+
+      final assignment = await _firestoreService.getActiveAssignment(
+        authUid,
+        companyId: companyId,
+      );
       if (assignment != null) {
-        vehicleId = assignment.vehicleId;
-        assignmentId = assignment.assignmentId;
+        if (vehicleId.isEmpty) vehicleId = assignment.vehicleId;
+        if (assignmentId.isEmpty) assignmentId = assignment.assignmentId;
       }
     }
 
@@ -361,23 +383,20 @@ class SyncService {
     );
   }
 
-  LogType _parseLogType(String s) =>
-      LogType.values.firstWhere((e) => e.name == s, orElse: () => LogType.other);
+  LogType _parseLogType(String s) => LogType.values
+      .firstWhere((e) => e.name == s, orElse: () => LogType.other);
 
-  LogCategory _parseCategory(String s) =>
-      LogCategory.values.firstWhere((e) => e.name == s,
-          orElse: () => LogCategory.other);
+  LogCategory _parseCategory(String s) => LogCategory.values
+      .firstWhere((e) => e.name == s, orElse: () => LogCategory.other);
 
   PaidBy _parsePaidBy(String s) =>
       PaidBy.values.firstWhere((e) => e.name == s, orElse: () => PaidBy.driver);
 
-  PaymentMode _parsePaymentMode(String s) =>
-      PaymentMode.values.firstWhere((e) => e.name == s,
-          orElse: () => PaymentMode.cash);
+  PaymentMode _parsePaymentMode(String s) => PaymentMode.values
+      .firstWhere((e) => e.name == s, orElse: () => PaymentMode.cash);
 
-  ActivityType _parseActivity(String s) =>
-      ActivityType.values.firstWhere((e) => e.name == s,
-          orElse: () => ActivityType.unknown);
+  ActivityType _parseActivity(String s) => ActivityType.values
+      .firstWhere((e) => e.name == s, orElse: () => ActivityType.unknown);
 
   /// Prune synced records older than 30 days.
   Future<void> pruneOldSyncedRecords() async {

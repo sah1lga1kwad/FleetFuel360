@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'driver_location.dart';
+
 part 'user_model.freezed.dart';
 part 'user_model.g.dart';
 
@@ -34,6 +36,7 @@ class UserModel with _$UserModel {
     @Default('') String fcmToken,
     @Default('') String appVersion,
     @Default(DeviceInfo()) DeviceInfo deviceInfo,
+    DriverLocation? lastKnownLocation,
     required DateTime createdAt,
     required DateTime updatedAt,
   }) = _UserModel;
@@ -43,9 +46,16 @@ class UserModel with _$UserModel {
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final rawLocation = data['lastKnownLocation'];
     return UserModel.fromJson({
       ...data,
       'userId': doc.id,
+      'lastKnownLocation': rawLocation is Map<String, dynamic>
+          ? DriverLocation.fromMap(rawLocation).toJson()
+          : rawLocation is Map
+              ? DriverLocation.fromMap(Map<String, dynamic>.from(rawLocation))
+                  .toJson()
+              : null,
       'createdAt': (data['createdAt'] as Timestamp).toDate().toIso8601String(),
       'updatedAt': (data['updatedAt'] as Timestamp).toDate().toIso8601String(),
     });
@@ -69,6 +79,7 @@ extension UserModelX on UserModel {
       'fcmToken': fcmToken,
       'appVersion': appVersion,
       'deviceInfo': deviceInfo.toJson(),
+      'lastKnownLocation': lastKnownLocation?.toJson(),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };

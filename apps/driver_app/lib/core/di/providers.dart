@@ -279,10 +279,21 @@ LogModel _localToLogModel(LocalLog local) {
 
 final localUnsyncedLogsStreamProvider = StreamProvider<List<LogModel>>((ref) {
   final isar = ref.watch(isarProvider);
+  final user = ref.watch(currentUserProvider);
+  final activeCompanyId = user?.companyId;
+  final activeDriverId = user?.userId;
   return isar.localLogs.watchLazy(fireImmediately: true).asyncMap((_) async {
     final locals = await isar.localLogs.where().findAll();
-    final unsynced =
-        locals.where((log) => log.syncStatus != SyncStatus.synced).toList();
+    final unsynced = locals.where((log) {
+      if (log.syncStatus == SyncStatus.synced) return false;
+      if (activeDriverId != null && activeDriverId.isNotEmpty) {
+        if (log.driverId != activeDriverId) return false;
+      }
+      if (activeCompanyId != null && activeCompanyId.isNotEmpty) {
+        if (log.companyId != activeCompanyId) return false;
+      }
+      return true;
+    }).toList();
     return unsynced.map(_localToLogModel).toList();
   });
 });
@@ -329,7 +340,10 @@ final assignedVehicleStreamProvider = StreamProvider<VehicleModel?>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return const Stream.empty();
   final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.watchAssignedVehicle(user.userId);
+  return firestoreService.watchAssignedVehicle(
+    user.userId,
+    companyId: user.companyId,
+  );
 });
 
 final assignedVehicleProvider = Provider<VehicleModel?>((ref) {
@@ -342,7 +356,10 @@ final activeAssignmentProvider = FutureProvider<VehicleAssignmentModel?>((ref) a
   final user = ref.watch(currentUserProvider);
   if (user == null) return null;
   final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.getActiveAssignment(user.userId);
+  return firestoreService.getActiveAssignment(
+    user.userId,
+    companyId: user.companyId,
+  );
 });
 
 // ─── Recent Logs (Home Feed) ──────────────────────────────────────────────────
@@ -351,7 +368,10 @@ final recentLogsStreamProvider = StreamProvider<List<LogModel>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return const Stream.empty();
   final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.watchRecentLogs(user.userId);
+  return firestoreService.watchRecentLogs(
+    user.userId,
+    companyId: user.companyId,
+  );
 });
 
 // ─── All Assignments ──────────────────────────────────────────────────────────
@@ -360,7 +380,10 @@ final allAssignmentsStreamProvider = StreamProvider<List<VehicleAssignmentModel>
   final user = ref.watch(currentUserProvider);
   if (user == null) return const Stream.empty();
   final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.watchAllAssignments(user.userId);
+  return firestoreService.watchAllAssignments(
+    user.userId,
+    companyId: user.companyId,
+  );
 });
 
 // ─── Ledger Logs ─────────────────────────────────────────────────────────────
@@ -369,7 +392,10 @@ final ledgerLogsProvider = StreamProvider<List<LogModel>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return const Stream.empty();
   final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.watchLedgerLogs(user.userId);
+  return firestoreService.watchLedgerLogs(
+    user.userId,
+    companyId: user.companyId,
+  );
 });
 
 // ─── All Logs (with optional type filter) ────────────────────────────────────
@@ -381,6 +407,7 @@ final allLogsStreamProvider =
   final firestoreService = ref.watch(firestoreServiceProvider);
   return firestoreService.watchLogs(
     user.userId,
+    companyId: user.companyId,
     logTypeFilter: logType == null
         ? null
         : {

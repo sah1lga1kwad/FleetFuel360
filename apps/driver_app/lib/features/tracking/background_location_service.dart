@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart'
     as bg;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -11,6 +14,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:fleetfuel_core/fleetfuel_core.dart';
 import '../../firebase_options.dart';
+
+Isar? _cachedIsar;
+Future<Isar>? _openingIsar;
 
 /// Headless task handler — runs even when app is terminated.
 /// Must be a top-level function (not a method).
@@ -80,7 +86,8 @@ Future<void> _saveLocationPing(
       ..speed = location.coords.speed
       ..bearing = location.coords.heading
       ..altitude = location.coords.altitude
-      ..geohash = Geohash.encode(location.coords.latitude, location.coords.longitude)
+      ..geohash =
+          Geohash.encode(location.coords.latitude, location.coords.longitude)
       ..activity = _activityType(location)
       ..isMoving = _isMoving(location)
       ..batteryLevel = _batteryLevel(location)
@@ -95,6 +102,11 @@ Future<void> _saveLocationPing(
       lastCapturedAt: now,
       lastError: null,
     );
+    await _tryUpdateDriverLastKnownLocation(
+      driverId: driverId,
+      location: location,
+      recordedAt: ping.recordedAt,
+    );
 
     if (tryImmediateSync) {
       await _tryImmediatePingSync(isar, ping);
@@ -106,12 +118,53 @@ Future<void> _saveLocationPing(
 }
 
 Future<Isar> _openIsar() async {
+  if (_cachedIsar != null && _cachedIsar!.isOpen) return _cachedIsar!;
+  final opening = _openingIsar;
+  if (opening != null) return opening;
+
+  _openingIsar = _openIsarInternal();
+  try {
+    final isar = await _openingIsar!;
+    _cachedIsar = isar;
+    return isar;
+  } finally {
+    _openingIsar = null;
+  }
+}
+
+Future<Isar> _openIsarInternal() async {
+  final existing = Isar.getInstance(AppConstants.isarInstanceName);
+  if (existing != null) return existing;
+
   final dir = await getApplicationDocumentsDirectory();
-  return Isar.open(
-    [LocalLocationPingSchema],
-    directory: dir.path,
-    name: AppConstants.isarInstanceName,
-  );
+  try {
+    // Always open with the same schema set as main isolate to avoid conflicts.
+    return await Isar.open(
+      [LocalLogSchema, LocalLocationPingSchema, DriverContextSchema],
+      directory: dir.path,
+      name: AppConstants.isarInstanceName,
+    );
+  } on IsarError {
+    final base = '${dir.path}/${AppConstants.isarInstanceName}.isar';
+    final candidates = [
+      base,
+      '$base.lock',
+      '$base-journal',
+      '$base-wal',
+      '$base-shm',
+    ];
+    for (final path in candidates) {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+    return Isar.open(
+      [LocalLogSchema, LocalLocationPingSchema, DriverContextSchema],
+      directory: dir.path,
+      name: AppConstants.isarInstanceName,
+    );
+  }
 }
 
 String _activityType(bg.Location location) {
@@ -125,7 +178,11 @@ String _activityType(bg.Location location) {
 int _batteryLevel(bg.Location location) {
   try {
     final dynamic level = (location as dynamic).battery?.level;
-    if (level is num) return level.round();
+    if (level is num) {
+      final value = level.toDouble();
+      final percent = value <= 1.0 ? value * 100 : value;
+      return percent.round().clamp(0, 100).toInt();
+    }
   } catch (_) {}
   return 0;
 }
@@ -204,6 +261,7 @@ class BackgroundLocationService {
         vehicleId: _vehicleId,
         assignmentId: _assignmentId,
       ),
+      isarInstance: _isar,
     );
 
     await bg.BackgroundGeolocation.ready(bg.Config(
@@ -251,6 +309,7 @@ class BackgroundLocationService {
         vehicleId: _vehicleId,
         assignmentId: _assignmentId,
       ),
+      isarInstance: _isar,
     );
   }
 
@@ -336,15 +395,21 @@ const _trackingCompanyIdKey = 'tracking_company_id';
 const _trackingVehicleIdKey = 'tracking_vehicle_id';
 const _trackingAssignmentIdKey = 'tracking_assignment_id';
 
-Future<void> _writeTrackingContext(_TrackingContext context) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_trackingDriverIdKey, context.driverId);
-  await prefs.setString(_trackingCompanyIdKey, context.companyId);
-  await prefs.setString(_trackingVehicleIdKey, context.vehicleId);
-  await prefs.setString(_trackingAssignmentIdKey, context.assignmentId);
+Future<void> _writeTrackingContext(
+  _TrackingContext context, {
+  Isar? isarInstance,
+}) async {
+  await _writeTrackingPrefs(context);
+  await _upsertDriverContext(context, isarInstance: isarInstance);
 }
 
 Future<_TrackingContext?> _readTrackingContext() async {
+  final fromIsar = await _readTrackingContextFromIsar();
+  if (fromIsar != null) {
+    await _writeTrackingPrefs(fromIsar);
+    return fromIsar;
+  }
+
   final prefs = await SharedPreferences.getInstance();
   final driverId = prefs.getString(_trackingDriverIdKey) ?? '';
   final companyId = prefs.getString(_trackingCompanyIdKey) ?? '';
@@ -365,6 +430,20 @@ Future<void> _clearTrackingContext() async {
   await prefs.remove(_trackingCompanyIdKey);
   await prefs.remove(_trackingVehicleIdKey);
   await prefs.remove(_trackingAssignmentIdKey);
+  try {
+    final isar = await _openIsar();
+    await isar.writeTxn(() async {
+      await isar.driverContexts.clear();
+    });
+  } catch (_) {}
+}
+
+Future<void> resetTrackingStateForCompanySwitch() async {
+  try {
+    await bg.BackgroundGeolocation.stop();
+  } catch (_) {}
+  await setTrackingRunningDebug(false);
+  await _clearTrackingContext();
 }
 
 Future<void> _ensureFirebaseInitialized() async {
@@ -463,5 +542,87 @@ Future<void> _setTrackingDebug({
     await prefs.remove(_trackingLastErrorKey);
   } else {
     await prefs.setString(_trackingLastErrorKey, lastError);
+  }
+}
+
+Future<void> _tryUpdateDriverLastKnownLocation({
+  required String driverId,
+  required bg.Location location,
+  required DateTime recordedAt,
+}) async {
+  try {
+    final connectivity = await Connectivity().checkConnectivity();
+    final isOnline = connectivity.any((r) => r != ConnectivityResult.none);
+    if (!isOnline) return;
+
+    await _ensureFirebaseInitialized();
+    final authUid = FirebaseAuth.instance.currentUser?.uid;
+    if (authUid == null || authUid != driverId) return;
+
+    final speedKmh = (location.coords.speed * 3.6).isFinite
+        ? location.coords.speed * 3.6
+        : 0.0;
+    await FirestoreService().updateDriverLastKnownLocation(driverId, {
+      'latitude': location.coords.latitude,
+      'longitude': location.coords.longitude,
+      'speed': speedKmh,
+      'activity': _activityType(location),
+      'batteryLevel': _batteryLevel(location),
+      'isCharging': _isCharging(location),
+      'recordedAt': FieldValue.serverTimestamp(),
+      'recordedAtClient': Timestamp.fromDate(recordedAt),
+    });
+  } catch (_) {
+    // Keep location capture resilient.
+  }
+}
+
+Future<void> _writeTrackingPrefs(_TrackingContext context) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_trackingDriverIdKey, context.driverId);
+  await prefs.setString(_trackingCompanyIdKey, context.companyId);
+  await prefs.setString(_trackingVehicleIdKey, context.vehicleId);
+  await prefs.setString(_trackingAssignmentIdKey, context.assignmentId);
+}
+
+Future<void> _upsertDriverContext(
+  _TrackingContext context, {
+  Isar? isarInstance,
+}) async {
+  if (context.driverId.isEmpty || context.companyId.isEmpty) return;
+  try {
+    final isar = isarInstance ?? await _openIsar();
+    final existing = await isar.driverContexts
+        .filter()
+        .driverIdEqualTo(context.driverId)
+        .findFirst();
+    await isar.writeTxn(() async {
+      final value = existing ?? DriverContext();
+      value.driverId = context.driverId;
+      value.companyId = context.companyId;
+      value.vehicleId = context.vehicleId;
+      value.assignmentId = context.assignmentId;
+      value.updatedAt = DateTime.now();
+      await isar.driverContexts.put(value);
+    });
+  } catch (_) {}
+}
+
+Future<_TrackingContext?> _readTrackingContextFromIsar() async {
+  try {
+    final isar = await _openIsar();
+    final all = await isar.driverContexts.where().findAll();
+    if (all.isEmpty) return null;
+    all.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final latest = all.first;
+    if (latest.driverId.isEmpty || latest.companyId.isEmpty) return null;
+    return _TrackingContext(
+      driverId: latest.driverId,
+      companyId: latest.companyId,
+      vehicleId: latest.vehicleId,
+      assignmentId: latest.assignmentId,
+    );
+  } catch (_) {
+    return null;
   }
 }

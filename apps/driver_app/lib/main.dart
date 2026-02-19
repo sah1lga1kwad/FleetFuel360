@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
@@ -30,18 +32,13 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await FirebaseAppCheck.instance.activate(
-    androidProvider: kDebugMode
-        ? AndroidProvider.debug
-        : AndroidProvider.playIntegrity,
+    androidProvider:
+        kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
   );
 
   // Isar — open with all local schemas
   final dir = await getApplicationDocumentsDirectory();
-  final isar = await Isar.open(
-    [LocalLogSchema, LocalLocationPingSchema],
-    directory: dir.path,
-    name: AppConstants.isarInstanceName,
-  );
+  final isar = await _openIsarWithRecovery(dir.path);
 
   // Register the background GPS headless task before BackgroundGeolocation.ready
   bg.BackgroundGeolocation.registerHeadlessTask(headlessTask);
@@ -55,4 +52,38 @@ Future<void> main() async {
       child: const DriverApp(),
     ),
   );
+}
+
+Future<Isar> _openIsarWithRecovery(String directoryPath) async {
+  final existing = Isar.getInstance(AppConstants.isarInstanceName);
+  if (existing != null) return existing;
+
+  try {
+    return await Isar.open(
+      [LocalLogSchema, LocalLocationPingSchema, DriverContextSchema],
+      directory: directoryPath,
+      name: AppConstants.isarInstanceName,
+    );
+  } on IsarError {
+    // Recover from schema/storage corruption by recreating local DB.
+    final base = '$directoryPath/${AppConstants.isarInstanceName}.isar';
+    final candidates = [
+      base,
+      '$base.lock',
+      '$base-journal',
+      '$base-wal',
+      '$base-shm',
+    ];
+    for (final path in candidates) {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+    return Isar.open(
+      [LocalLogSchema, LocalLocationPingSchema, DriverContextSchema],
+      directory: directoryPath,
+      name: AppConstants.isarInstanceName,
+    );
+  }
 }

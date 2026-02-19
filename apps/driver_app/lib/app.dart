@@ -165,7 +165,10 @@ class _DriverAppState extends ConsumerState<DriverApp>
 
     if (_trackingUserId == user.userId && _trackingService != null) {
       final activeAssignment =
-          await ref.read(firestoreServiceProvider).getActiveAssignment(user.userId);
+          await ref.read(firestoreServiceProvider).getActiveAssignment(
+                user.userId,
+                companyId: user.companyId,
+              );
       await _trackingService!.updateIdentity(
         vehicleId: activeAssignment?.vehicleId ?? '',
         assignmentId: activeAssignment?.assignmentId ?? '',
@@ -174,7 +177,10 @@ class _DriverAppState extends ConsumerState<DriverApp>
     }
 
     final activeAssignment =
-        await ref.read(firestoreServiceProvider).getActiveAssignment(user.userId);
+        await ref.read(firestoreServiceProvider).getActiveAssignment(
+              user.userId,
+              companyId: user.companyId,
+            );
     final isar = ref.read(isarProvider);
     final service = BackgroundLocationService(
       isar: isar,
