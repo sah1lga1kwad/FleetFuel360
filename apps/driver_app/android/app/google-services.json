@@ -1,0 +1,134 @@
+{
+  "project_info": {
+    "project_number": "155537989342",
+    "project_id": "fleetfuel360-dev",
+    "storage_bucket": "fleetfuel360-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:155537989342:android:c6d3f1dc139bac580b2c4f",
+        "android_client_info": {
+          "package_name": "com.example.fleetfuel360_driver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "155537989342-vstbmvnd45qoh00r74n6a08cp10gcda7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fleetfuel360_driver",
+            "certificate_hash": "aafcf51025f2c99d761d9778807de5a0decb723f"
+          }
+        },
+        {
+          "client_id": "155537989342-l5e863j6uomhjvkdg8876qunmhns7p3u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiWK80q1o8w1zP5pJANF5Ve_cWH6OCy_k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "155537989342-l5e863j6uomhjvkdg8876qunmhns7p3u.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "155537989342-fsfokdr7bu8mqclp3ad3ghsjv9q57v1u.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fleetfuel360Driver"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:155537989342:android:433a99ac066f4eb00b2c4f",
+        "android_client_info": {
+          "package_name": "com.example.fleetfuel360_manager"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "155537989342-51tb9gqt4gfdmscqdjls6kmq1nb8s6nj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fleetfuel360_manager",
+            "certificate_hash": "aafcf51025f2c99d761d9778807de5a0decb723f"
+          }
+        },
+        {
+          "client_id": "155537989342-l5e863j6uomhjvkdg8876qunmhns7p3u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiWK80q1o8w1zP5pJANF5Ve_cWH6OCy_k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "155537989342-l5e863j6uomhjvkdg8876qunmhns7p3u.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "155537989342-fsfokdr7bu8mqclp3ad3ghsjv9q57v1u.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fleetfuel360Driver"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:155537989342:android:34032e000973aa500b2c4f",
+        "android_client_info": {
+          "package_name": "com.fleetfuel360.driver_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "155537989342-l5e863j6uomhjvkdg8876qunmhns7p3u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiWK80q1o8w1zP5pJANF5Ve_cWH6OCy_k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "155537989342-l5e863j6uomhjvkdg8876qunmhns7p3u.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "155537989342-fsfokdr7bu8mqclp3ad3ghsjv9q57v1u.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fleetfuel360Driver"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -7,13 +7,10 @@
 .pub/
 build/
 *.iml
-*.lock
 
 # Android
 **/android/.gradle
 **/android/captures/
-**/android/gradlew
-**/android/gradlew.bat
 **/android/local.properties
 **/android/**/GeneratedPluginRegistrant.java
 **/android/key.properties
@@ -47,17 +44,12 @@ build/
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
 
-# Firebase
-**/google-services.json
-**/GoogleService-Info.plist
+# Firebase CLI local state
 firebase/**/.firebaserc
 
 # macOS
 **/macos/Flutter/GeneratedPluginRegistrant.swift
 **/macos/Flutter/ephemeral/
-
-# Web
-**/web/
 
 # Windows
 **/windows/flutter/generated_plugin_registrant.cc
@@ -70,10 +62,7 @@ firebase/**/.firebaserc
 **/linux/flutter/generated_plugins.cmake
 
 # Code generation
-**/*.g.dart
-**/*.freezed.dart
-**/*.gr.dart
-**/isar.g.dart
+# Keep generated source files in git so a fresh clone can run without build_runner.
 
 # Env files
 .env
