@@ -12,7 +12,7 @@ class ManagerApp extends ConsumerWidget {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'FleetFuel360 Companies',
+      title: 'FleetFuel360 Manager',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,

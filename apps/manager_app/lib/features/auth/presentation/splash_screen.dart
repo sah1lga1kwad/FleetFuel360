@@ -12,7 +12,7 @@ class SplashScreen extends StatelessWidget {
           children: [
             Icon(Icons.business, size: 56),
             SizedBox(height: 12),
-            Text('FleetFuel360 Companies'),
+            Text('FleetFuel360 Manager'),
             SizedBox(height: 20),
             CircularProgressIndicator(),
           ],

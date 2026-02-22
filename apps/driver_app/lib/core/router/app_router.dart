@@ -197,17 +197,31 @@ class MainShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: _BottomNav(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ref.read(addLogFlowProvider.notifier).reset();
-          context.push('/log/add');
-        },
-        child: const Icon(Icons.add, size: 28),
+    final location = GoRouterState.of(context).matchedLocation;
+    var currentIndex = 0;
+    if (location.startsWith('/logs')) currentIndex = 1;
+    if (location.startsWith('/vehicle')) currentIndex = 2;
+    if (location.startsWith('/ledger')) currentIndex = 3;
+
+    return PopScope<void>(
+      canPop: currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && currentIndex != 0) {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        body: child,
+        bottomNavigationBar: _BottomNav(),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            ref.read(addLogFlowProvider.notifier).reset();
+            context.push('/log/add');
+          },
+          child: const Icon(Icons.add, size: 28),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 }

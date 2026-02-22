@@ -1,10 +1,10 @@
 name: manager_app
-description: FleetFuel360 Companies - Fleet management for owners and managers
-publish_to: 'none'
+description: FleetFuel360 Manager - Fleet management for owners and managers
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
