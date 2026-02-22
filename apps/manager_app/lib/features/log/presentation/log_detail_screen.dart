@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:photo_view/photo_view.dart';
 
 import 'package:fleetfuel_core/fleetfuel_core.dart';
 
@@ -49,17 +50,47 @@ class LogDetailScreen extends ConsumerWidget {
               Text('Driver: ${log.driverId}'),
               Text('Vehicle: ${log.vehicleId}'),
               const SizedBox(height: 12),
+              if (log.location.latitude != 0.0 || log.location.longitude != 0.0)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: _staticMapUrl(
+                      log.location.latitude,
+                      log.location.longitude,
+                    ),
+                    height: 170,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              if (log.location.latitude != 0.0 || log.location.longitude != 0.0)
+                const SizedBox(height: 12),
               if (images.isNotEmpty)
                 SizedBox(
                   height: 220,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemBuilder: (_, i) => ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: CachedNetworkImage(
-                        imageUrl: images[i],
-                        width: 220,
-                        fit: BoxFit.cover,
+                    itemBuilder: (_, i) => GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => Scaffold(
+                              appBar: AppBar(),
+                              body: PhotoView(
+                                imageProvider:
+                                    CachedNetworkImageProvider(images[i]),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CachedNetworkImage(
+                          imageUrl: images[i],
+                          width: 220,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -70,10 +101,40 @@ class LogDetailScreen extends ConsumerWidget {
               Text('Notes: ${log.notes.isEmpty ? '-' : log.notes}'),
               Text(
                   'Description: ${log.description.isEmpty ? '-' : log.description}'),
+              if (log.isEdited)
+                ExpansionTile(
+                  title: Text('⚠ Edited ${log.editHistory.length} time(s)'),
+                  children: log.editHistory
+                      .map(
+                        (edit) => ListTile(
+                          title: Text(
+                            'Edited ${AppFormatters.formatRelative(edit.editedAt)}',
+                          ),
+                          subtitle: Text(
+                            edit.reason.isEmpty
+                                ? 'No reason given'
+                                : edit.reason,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
             ],
           );
         },
       ),
     );
+  }
+
+  String _staticMapUrl(double lat, double lng) {
+    const apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+    final center = '$lat,$lng';
+    final markers = 'color:red|$lat,$lng';
+    return 'https://maps.googleapis.com/maps/api/staticmap'
+        '?center=${Uri.encodeQueryComponent(center)}'
+        '&zoom=15'
+        '&size=400x200'
+        '&markers=${Uri.encodeQueryComponent(markers)}'
+        '&key=$apiKey';
   }
 }

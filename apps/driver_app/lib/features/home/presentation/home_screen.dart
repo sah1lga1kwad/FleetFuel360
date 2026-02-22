@@ -19,11 +19,15 @@ class HomeScreen extends ConsumerWidget {
     final vehicle = ref.watch(assignedVehicleProvider);
     final recentLogs = ref.watch(recentLogsStreamProvider);
     final ledgerLogs = ref.watch(ledgerLogsProvider);
-    final localUnsyncedLogs = ref.watch(localUnsyncedLogsStreamProvider);
-    final mergedLedgerLogs = <LogModel>[
-      ...(ledgerLogs.valueOrNull ?? const <LogModel>[]),
-      ...(localUnsyncedLogs.valueOrNull ?? const <LogModel>[]),
-    ];
+    final localLogs = ref.watch(localLogsStreamProvider);
+    final mergedLedgerById = <String, LogModel>{};
+    for (final log in (ledgerLogs.valueOrNull ?? const <LogModel>[])) {
+      mergedLedgerById[log.logId] = log;
+    }
+    for (final log in (localLogs.valueOrNull ?? const <LogModel>[])) {
+      mergedLedgerById[log.logId] = log;
+    }
+    final mergedLedgerLogs = mergedLedgerById.values.toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -104,13 +108,37 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               recentLogs.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('Error: $e'),
-                data: (logs) => logs.isEmpty
-                    ? _EmptyActivity()
-                    : Column(
-                        children:
-                            logs.map((log) => _LogCard(log: log)).toList(),
-                      ),
+                error: (e, _) {
+                  final localOnly = localLogs.valueOrNull ?? const <LogModel>[];
+                  if (localOnly.isEmpty) return Text('Error: $e');
+                  final recent = [...localOnly]
+                    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                  return Column(
+                    children: recent
+                        .take(10)
+                        .map((log) => _LogCard(log: log))
+                        .toList(),
+                  );
+                },
+                data: (logs) {
+                  final merged = <LogModel>[
+                    ...logs,
+                    ...(localLogs.valueOrNull ?? const <LogModel>[]),
+                  ];
+                  final byId = <String, LogModel>{};
+                  for (final log in merged) {
+                    byId[log.logId] = log;
+                  }
+                  final recent = byId.values.toList()
+                    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+                  if (recent.isEmpty) return _EmptyActivity();
+                  return Column(
+                    children: recent
+                        .take(10)
+                        .map((log) => _LogCard(log: log))
+                        .toList(),
+                  );
+                },
               ),
               const SizedBox(height: 80), // FAB clearance
             ],
@@ -238,13 +266,14 @@ class _BalanceCard extends StatelessWidget {
     int totalExpenses = 0;
     int totalReceived = 0;
     for (final log in logs) {
-      if ((log.logType == LogType.cashExpense ||
-              log.logType == LogType.fuelFill) &&
-          log.paidBy == PaidBy.driver) {
+      // DR entries: cash expenses by driver + fuel fills
+      if ((log.logType == LogType.cashExpense && log.paidBy == PaidBy.driver) ||
+          log.logType == LogType.fuelFill) {
         totalExpenses += log.amount;
-      } else if (log.logType == LogType.paymentReceived ||
-          log.logType == LogType.advance ||
-          log.logType == LogType.loan) {
+      }
+      // CR entries
+      else if (log.logType == LogType.paymentReceived ||
+          log.logType == LogType.advance) {
         totalReceived += log.amount;
       }
     }

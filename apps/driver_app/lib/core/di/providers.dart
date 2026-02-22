@@ -137,7 +137,8 @@ class TrackingDiagnostics {
   });
 }
 
-final trackingDiagnosticsProvider = FutureProvider<TrackingDiagnostics>((ref) async {
+final trackingDiagnosticsProvider =
+    FutureProvider<TrackingDiagnostics>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   final isar = ref.read(isarProvider);
 
@@ -298,6 +299,33 @@ final localUnsyncedLogsStreamProvider = StreamProvider<List<LogModel>>((ref) {
   });
 });
 
+final localLogsStreamProvider = StreamProvider<List<LogModel>>((ref) {
+  final isar = ref.watch(isarProvider);
+  final user = ref.watch(currentUserProvider);
+  final activeCompanyId = user?.companyId;
+  final activeDriverId = user?.userId;
+  return isar.localLogs.watchLazy(fireImmediately: true).asyncMap((_) async {
+    final locals = await isar.localLogs.where().findAll();
+    final scoped = locals.where((log) {
+      // Must be the current driver's log
+      if (activeDriverId != null && activeDriverId.isNotEmpty) {
+        if (log.driverId != activeDriverId) return false;
+      }
+      // Must be in the current company (if set)
+      // Note: ALL logs MUST have a companyId set, so we strictly require matching
+      if (activeCompanyId != null && activeCompanyId.isNotEmpty) {
+        if (log.companyId != activeCompanyId || log.companyId.isEmpty) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+    final mapped = scoped.map(_localToLogModel).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return mapped;
+  });
+});
+
 // ─── Auth State ───────────────────────────────────────────────────────────────
 
 final authStateStreamProvider = StreamProvider<User?>((ref) {
@@ -352,7 +380,8 @@ final assignedVehicleProvider = Provider<VehicleModel?>((ref) {
 
 // ─── Active Assignment ────────────────────────────────────────────────────────
 
-final activeAssignmentProvider = FutureProvider<VehicleAssignmentModel?>((ref) async {
+final activeAssignmentProvider =
+    FutureProvider<VehicleAssignmentModel?>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user == null) return null;
   final firestoreService = ref.watch(firestoreServiceProvider);
@@ -376,7 +405,8 @@ final recentLogsStreamProvider = StreamProvider<List<LogModel>>((ref) {
 
 // ─── All Assignments ──────────────────────────────────────────────────────────
 
-final allAssignmentsStreamProvider = StreamProvider<List<VehicleAssignmentModel>>((ref) {
+final allAssignmentsStreamProvider =
+    StreamProvider<List<VehicleAssignmentModel>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return const Stream.empty();
   final firestoreService = ref.watch(firestoreServiceProvider);

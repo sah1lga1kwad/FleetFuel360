@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +24,8 @@ class DriverDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final drivers = ref.watch(companyDriversProvider).valueOrNull ?? [];
+    final manager = ref.watch(currentManagerProvider).valueOrNull;
+    final companyId = manager?.companyId;
     final driver = drivers.where((d) => d.userId == driverId).firstOrNull;
 
     if (driver == null) {
@@ -33,9 +36,13 @@ class DriverDetailScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(driver.name)),
       body: FutureBuilder<List<dynamic>>(
         future: Future.wait([
-          ref.read(firestoreServiceProvider).getDriverLogs(driverId),
+          ref.read(firestoreServiceProvider).getDriverLogs(
+                driverId,
+                companyId: companyId,
+              ),
           ref.read(firestoreServiceProvider).getDriverPings(
                 driverId,
+                companyId: companyId,
                 startDate: DateTime.now().subtract(const Duration(hours: 1)),
                 endDate: DateTime.now(),
               ),
@@ -43,6 +50,11 @@ class DriverDetailScreen extends ConsumerWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Failed to load driver data: ${snapshot.error}'),
+            );
           }
 
           final logs = (snapshot.data?[0] as List<LogModel>?) ?? [];
@@ -58,6 +70,20 @@ class DriverDetailScreen extends ConsumerWidget {
 
           final trail =
               pings.map((p) => LatLng(p.latitude, p.longitude)).toList();
+          final lastLoc = driver.lastKnownLocation;
+          final hasMapPoint = trail.isNotEmpty || lastLoc != null;
+          final mapCenter = trail.isNotEmpty
+              ? trail.last
+              : LatLng(lastLoc!.latitude, lastLoc.longitude);
+          final mapMarkers = hasMapPoint
+              ? {
+                  Marker(
+                    markerId: MarkerId(driver.userId),
+                    position: mapCenter,
+                    infoWindow: InfoWindow(title: driver.name),
+                  ),
+                }
+              : <Marker>{};
 
           final expenseToday = todayLogs
               .where((l) => l.logType == LogType.cashExpense)
@@ -73,11 +99,27 @@ class DriverDetailScreen extends ConsumerWidget {
                     children: [
                       CircleAvatar(
                         radius: 28,
-                        child: Text(
-                          driver.name.isNotEmpty
-                              ? driver.name[0].toUpperCase()
-                              : 'D',
-                        ),
+                        backgroundColor:
+                            AppColors.primary.withValues(alpha: 0.12),
+                        child: driver.profileImageUrl.isNotEmpty
+                            ? ClipOval(
+                                child: CachedNetworkImage(
+                                  imageUrl: driver.profileImageUrl,
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => Text(
+                                    driver.name.isNotEmpty
+                                        ? driver.name[0].toUpperCase()
+                                        : 'D',
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                driver.name.isNotEmpty
+                                    ? driver.name[0].toUpperCase()
+                                    : 'D',
+                              ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -128,33 +170,40 @@ class DriverDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 8),
                       SizedBox(
                         height: 200,
-                        child: trail.isEmpty
+                        child: !hasMapPoint
                             ? const Center(
                                 child: Text('Location not available'))
                             : GoogleMap(
                                 initialCameraPosition: CameraPosition(
-                                  target: trail.last,
+                                  target: mapCenter,
                                   zoom: 14,
                                 ),
-                                markers: {
-                                  Marker(
-                                    markerId: MarkerId(driver.userId),
-                                    position: trail.last,
-                                    infoWindow: InfoWindow(title: driver.name),
-                                  ),
-                                },
-                                polylines: {
-                                  Polyline(
-                                    polylineId: PolylineId(driver.userId),
-                                    points: trail,
-                                    color: AppColors.primary,
-                                    width: 4,
-                                  ),
-                                },
+                                markers: mapMarkers,
+                                polylines: trail.isEmpty
+                                    ? const <Polyline>{}
+                                    : {
+                                        Polyline(
+                                          polylineId: PolylineId(driver.userId),
+                                          points: trail,
+                                          color: AppColors.primary,
+                                          width: 4,
+                                        ),
+                                      },
                                 zoomControlsEnabled: false,
                                 mapToolbarEnabled: false,
                               ),
                       ),
+                      if (lastLoc != null && trail.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6),
+                          child: Text(
+                            'Live position is available; trail data not available for the selected range.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.neutral,
+                            ),
+                          ),
+                        ),
                       if (driver.lastKnownLocation != null) ...[
                         const SizedBox(height: 8),
                         Text(
@@ -163,7 +212,8 @@ class DriverDetailScreen extends ConsumerWidget {
                         ),
                       ],
                       TextButton(
-                        onPressed: () => context.go('/map'),
+                        onPressed: () =>
+                            context.go('/map?driverId=${driver.userId}'),
                         child: const Text('Open Full Map'),
                       ),
                     ],
@@ -198,6 +248,27 @@ class DriverDetailScreen extends ConsumerWidget {
                 itemCount: todayLogs.length,
                 itemBuilder: (context, index) {
                   final log = todayLogs[index];
+
+                  // Proper color coding for each log type
+                  Color getLogColor(LogType type) {
+                    switch (type) {
+                      case LogType.fuelFill:
+                        return AppColors.fuel;
+                      case LogType.cashExpense:
+                        return AppColors.expense;
+                      case LogType.paymentReceived:
+                        return AppColors.income;
+                      case LogType.advance:
+                        return AppColors.primary;
+                      case LogType.loan:
+                        return AppColors.warning;
+                      default:
+                        return AppColors.neutral;
+                    }
+                  }
+
+                  final logColor = getLogColor(log.logType);
+
                   return TimelineTile(
                     alignment: TimelineAlign.manual,
                     lineXY: 0.12,
@@ -208,7 +279,7 @@ class DriverDetailScreen extends ConsumerWidget {
                       height: 36,
                       indicator: Container(
                         decoration: BoxDecoration(
-                          color: _logTypeColor(log.logType),
+                          color: logColor,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(_logTypeIcon(log.logType),
@@ -230,9 +301,7 @@ class DriverDetailScreen extends ConsumerWidget {
                           Text(
                             AppFormatters.formatAmount(log.amount),
                             style: TextStyle(
-                              color: log.logType == LogType.cashExpense
-                                  ? AppColors.expense
-                                  : AppColors.income,
+                              color: logColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

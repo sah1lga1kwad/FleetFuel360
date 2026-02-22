@@ -6,7 +6,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/theme/app_theme.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.showManagerError = false});
+
+  final bool showManagerError;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -16,6 +18,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
   String? _error;
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showManagerError) {
+      _error =
+          'This account is registered as a manager. Please use FleetFuel360 Companies.';
+    }
+  }
+
   Future<void> _signInWithGoogle() async {
     setState(() {
       _isLoading = true;
@@ -23,7 +34,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final googleSignIn = GoogleSignIn();
+      final googleSignIn = GoogleSignIn(
+        forceCodeForRefreshToken: true,
+      );
+      // Disconnect first to show account picker
+      await googleSignIn.disconnect();
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         // User cancelled
@@ -127,7 +142,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(AppColors.primary),
+                            valueColor:
+                                AlwaysStoppedAnimation(AppColors.primary),
                           ),
                         )
                       : const Icon(Icons.g_mobiledata, size: 24),

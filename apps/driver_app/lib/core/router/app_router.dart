@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
@@ -42,12 +43,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // User document still loading
       if (userAsync.isLoading) return null;
+      if (userAsync.hasError) {
+        // Avoid redirect loops on transient Firestore/network errors.
+        return null;
+      }
       final user = userAsync.valueOrNull;
 
       // Logged in but user doc missing → onboarding/KYC
       if (user == null) {
         if (state.fullPath == '/kyc') return null;
         return '/kyc';
+      }
+
+      // Driver app must not be used with manager accounts.
+      if (user.role == 'manager') {
+        FirebaseAuth.instance.signOut();
+        if (state.fullPath == '/login') return null;
+        return '/login?managerAccount=true';
       }
 
       // KYC not done
@@ -57,7 +69,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // Company not joined
-      if (user.companyId == null) {
+      if (user.companyId == null || user.companyId!.isEmpty) {
         if (state.fullPath == '/company-join') return null;
         return '/company-join';
       }
@@ -67,8 +79,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final permissionsReady = permissionStatus?.allGranted ?? false;
 
       if (!permissionsReady) {
+        const onboardingPaths = {
+          '/',
+          '/login',
+          '/kyc',
+          '/company-join',
+          '/permissions',
+        };
         if (state.fullPath == '/permissions') return null;
-        return '/permissions';
+        if (onboardingPaths.contains(state.fullPath)) {
+          return '/permissions';
+        }
+        // Do not force-redirect away from active screens (prevents route churn).
+        return null;
       }
 
       // Fully set up — redirect away from auth screens
@@ -88,7 +111,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        builder: (context, state) => LoginScreen(
+          showManagerError:
+              state.uri.queryParameters['managerAccount'] == 'true',
+        ),
       ),
       GoRoute(
         path: '/kyc',

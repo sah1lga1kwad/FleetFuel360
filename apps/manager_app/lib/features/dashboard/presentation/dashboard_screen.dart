@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:fleetfuel_core/fleetfuel_core.dart';
 
@@ -29,6 +30,9 @@ class AlertItem {
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
+
+  static const String _driverPlayStoreUrl =
+      'https://play.google.com/store/apps/details?id=com.fleetfuel360.driver';
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
@@ -74,6 +78,7 @@ class DashboardScreen extends ConsumerWidget {
     final driversAsync = ref.watch(companyDriversProvider);
     final vehiclesAsync = ref.watch(companyVehiclesProvider);
     final logsAsync = ref.watch(companyLogsProvider(150));
+    final company = ref.watch(managerCompanyProvider).valueOrNull;
     final assignmentByVehicle = ref.watch(assignmentByVehicleProvider);
     final connectivityAsync = ref.watch(connectivityProvider);
 
@@ -281,6 +286,38 @@ class DashboardScreen extends ConsumerWidget {
                                   ),
                                 ],
                               ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                FilledButton.icon(
+                                  onPressed: () => context.push('/settings/add-vehicle'),
+                                  icon: const Icon(Icons.add_road),
+                                  label: const Text('Add Vehicle'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: () => context.push('/settings/assign-vehicle'),
+                                  icon: const Icon(Icons.swap_horiz),
+                                  label: const Text('Assign Vehicle'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: company == null
+                                      ? null
+                                      : () => SharePlus.instance.share(
+                                            ShareParams(
+                                              text:
+                                                  'Join my FleetFuel360 company as a driver.\n'
+                                                  'Company Code: ${company.companyCode}\n\n'
+                                                  'Download FleetFuel360 Drivers:\n'
+                                                  '$_driverPlayStoreUrl',
+                                            ),
+                                          ),
+                                  icon: const Icon(Icons.share),
+                                  label: const Text('Invite Driver'),
+                                ),
+                              ],
                             ),
                             if (alerts.isNotEmpty) ...[
                               const SizedBox(height: 16),

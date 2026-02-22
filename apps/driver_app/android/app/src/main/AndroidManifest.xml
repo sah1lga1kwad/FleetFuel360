@@ -38,7 +38,7 @@
 
     <!-- ── Application ─────────────────────────────────────────────────── -->
     <application
-        android:label="FleetFuel360"
+        android:label="FleetFuel360 Drivers"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true"

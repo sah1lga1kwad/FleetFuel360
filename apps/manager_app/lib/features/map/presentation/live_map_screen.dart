@@ -26,6 +26,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   Set<Polyline> _polylines = {};
   String? _activeDriverId;
   String? _selectedRange;
+  bool _initialFocusHandled = false;
 
   Future<BitmapDescriptor> _buildDriverMarker(
     String initials,
@@ -82,8 +83,10 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
 
   Future<void> _showTrailForDriver(String driverId, Duration range) async {
     final service = ref.read(firestoreServiceProvider);
+    final companyId = ref.read(currentManagerProvider).valueOrNull?.companyId;
     final pings = await service.getDriverPings(
       driverId,
+      companyId: companyId,
       startDate: DateTime.now().subtract(range),
       endDate: DateTime.now(),
     );
@@ -110,11 +113,32 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   @override
   Widget build(BuildContext context) {
     final driversAsync = ref.watch(companyDriversProvider);
+    final focusedDriverId = GoRouterState.of(context).uri.queryParameters['driverId'];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Live Map')),
       body: driversAsync.when(
         data: (drivers) {
+          if (!_initialFocusHandled && focusedDriverId != null) {
+            _initialFocusHandled = true;
+            final target = drivers.where((d) => d.userId == focusedDriverId).firstOrNull;
+            if (target != null) {
+              final loc = target.lastKnownLocation;
+              if (loc != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  if (!mounted) return;
+                  await _mapController?.animateCamera(
+                    CameraUpdate.newLatLngZoom(
+                      LatLng(loc.latitude, loc.longitude),
+                      14,
+                    ),
+                  );
+                  _selectedRange = '1 hr';
+                  await _showTrailForDriver(target.userId, const Duration(hours: 1));
+                });
+              }
+            }
+          }
           return FutureBuilder<Set<Marker>>(
             future: _buildMarkers(drivers),
             builder: (context, snapshot) {

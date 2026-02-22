@@ -18,6 +18,33 @@ class LogsListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedType = ref.watch(_logTypeFilterProvider);
     final logsAsync = ref.watch(allLogsStreamProvider(selectedType));
+    final localLogsAsync = ref.watch(localLogsStreamProvider);
+    final localLogs = localLogsAsync.valueOrNull ?? const <LogModel>[];
+
+    Widget buildLogList(List<LogModel> cloudLogs) {
+      final merged = <LogModel>[
+        ...cloudLogs,
+        ...localLogs,
+      ];
+      final byId = <String, LogModel>{};
+      for (final log in merged) {
+        byId[log.logId] = log;
+      }
+      final filtered = byId.values.where((log) {
+        if (selectedType == null) return true;
+        return log.logType == selectedType;
+      }).toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (filtered.isEmpty) {
+        return _EmptyLogs(hasFilter: selectedType != null);
+      }
+      return ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: filtered.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) => _LogListTile(log: filtered[i]),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -38,15 +65,8 @@ class LogsListScreen extends ConsumerWidget {
           Expanded(
             child: logsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (logs) => logs.isEmpty
-                  ? _EmptyLogs(hasFilter: selectedType != null)
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: logs.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) => _LogListTile(log: logs[i]),
-                    ),
+              error: (e, _) => buildLogList(const <LogModel>[]),
+              data: buildLogList,
             ),
           ),
         ],
@@ -82,8 +102,7 @@ class _FilterChipsRow extends ConsumerWidget {
           _FilterChip(
             label: 'All',
             isSelected: selected == null,
-            onTap: () =>
-                ref.read(_logTypeFilterProvider.notifier).state = null,
+            onTap: () => ref.read(_logTypeFilterProvider.notifier).state = null,
           ),
           ...LogType.values.map((t) => _FilterChip(
                 label: _typeLabel(t),
@@ -219,8 +238,8 @@ class _LogListTile extends StatelessWidget {
                     ),
                   Text(
                     AppFormatters.formatRelative(log.createdAt),
-                    style: const TextStyle(
-                        color: AppColors.neutral, fontSize: 11),
+                    style:
+                        const TextStyle(color: AppColors.neutral, fontSize: 11),
                   ),
                 ],
               ),
@@ -239,8 +258,8 @@ class _LogListTile extends StatelessWidget {
                 if (log.odometerReading > 0)
                   Text(
                     AppFormatters.formatOdometer(log.odometerReading),
-                    style: const TextStyle(
-                        color: AppColors.neutral, fontSize: 11),
+                    style:
+                        const TextStyle(color: AppColors.neutral, fontSize: 11),
                   ),
               ],
             ),
@@ -367,9 +386,8 @@ class _FilterTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(label),
-      trailing: isSelected
-          ? const Icon(Icons.check, color: AppColors.primary)
-          : null,
+      trailing:
+          isSelected ? const Icon(Icons.check, color: AppColors.primary) : null,
       onTap: onTap,
     );
   }

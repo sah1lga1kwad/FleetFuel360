@@ -154,7 +154,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                 ),
               ],
             ),
-            _LedgerTab(logs: filtered, drivers: drivers),
+            _LedgerTab(logs: logs, drivers: drivers),
           ],
         ),
       ),
@@ -548,6 +548,9 @@ class _LogDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lat = log.location.latitude;
+    final lng = log.location.longitude;
+    final hasLocation = lat != 0.0 || lng != 0.0;
     final images = [
       ...log.receiptImageUrls,
       if (log.odometerImageUrl != null && log.odometerImageUrl!.isNotEmpty)
@@ -598,6 +601,24 @@ class _LogDetailSheet extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 10),
+        if (hasLocation) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: CachedNetworkImage(
+              imageUrl: _staticMapUrl(lat, lng),
+              height: 170,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => Container(
+                height: 170,
+                color: AppColors.backgroundLight,
+                alignment: Alignment.center,
+                child: const Text('Map preview unavailable'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
         Card(
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -620,7 +641,7 @@ class _LogDetailSheet extends StatelessWidget {
         ),
         if (log.isEdited)
           ExpansionTile(
-            title: Text('Edited ${log.editHistory.length} time(s)'),
+            title: Text('⚠ Edited ${log.editHistory.length} time(s)'),
             children: log.editHistory
                 .map(
                   (edit) => ListTile(
@@ -634,6 +655,18 @@ class _LogDetailSheet extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  String _staticMapUrl(double lat, double lng) {
+    const apiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+    final center = '$lat,$lng';
+    final markers = 'color:red|$lat,$lng';
+    return 'https://maps.googleapis.com/maps/api/staticmap'
+        '?center=${Uri.encodeQueryComponent(center)}'
+        '&zoom=15'
+        '&size=400x200'
+        '&markers=${Uri.encodeQueryComponent(markers)}'
+        '&key=$apiKey';
   }
 
   Widget _kv(String key, String value) {

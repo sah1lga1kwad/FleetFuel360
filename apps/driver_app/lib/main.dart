@@ -64,7 +64,14 @@ Future<Isar> _openIsarWithRecovery(String directoryPath) async {
       directory: directoryPath,
       name: AppConstants.isarInstanceName,
     );
-  } on IsarError {
+  } on IsarError catch (e) {
+    final message = e.toString().toLowerCase();
+    if (message.contains('already been opened') ||
+        message.contains('already opened')) {
+      final opened = Isar.getInstance(AppConstants.isarInstanceName);
+      if (opened != null) return opened;
+      rethrow;
+    }
     // Recover from schema/storage corruption by recreating local DB.
     final base = '$directoryPath/${AppConstants.isarInstanceName}.isar';
     final candidates = [

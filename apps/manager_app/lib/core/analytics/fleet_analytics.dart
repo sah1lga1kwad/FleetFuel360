@@ -30,9 +30,13 @@ class FleetAnalytics {
   static int driverBalance(List<LogModel> logs) {
     int balance = 0;
     for (final log in logs) {
-      if (log.logType == LogType.cashExpense && log.paidBy == PaidBy.driver) {
+      // DR entries: cash expenses by driver + fuel fills
+      if ((log.logType == LogType.cashExpense && log.paidBy == PaidBy.driver) ||
+          log.logType == LogType.fuelFill) {
         balance += log.amount;
-      } else if (log.logType == LogType.paymentReceived ||
+      }
+      // CR entries
+      else if (log.logType == LogType.paymentReceived ||
           log.logType == LogType.advance) {
         balance -= log.amount;
       }

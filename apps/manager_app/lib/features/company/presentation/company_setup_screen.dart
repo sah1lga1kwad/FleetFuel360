@@ -90,6 +90,10 @@ class _CompanySetupScreenState extends ConsumerState<CompanySetupScreen> {
         );
         await firestoreService.createUser(user);
       } else {
+        if (existing.role == 'driver') {
+          throw Exception(
+              'This account is a driver account. Please use FleetFuel360 Drivers.');
+        }
         await firestoreService.updateUser(firebaseUser.uid, {
           'name': existing.name.isEmpty
               ? (firebaseUser.displayName ?? 'Manager')
@@ -109,10 +113,13 @@ class _CompanySetupScreenState extends ConsumerState<CompanySetupScreen> {
         _companyCode = code;
         _isSubmitting = false;
       });
-    } catch (_) {
+    } catch (e) {
+      final msg = e.toString();
       setState(() {
         _isSubmitting = false;
-        _error = 'Failed to create company. Please try again.';
+        _error = msg.contains('driver account')
+            ? 'This account is a driver account. Please use FleetFuel360 Drivers.'
+            : 'Failed to create company. Please try again.';
       });
     }
   }
@@ -200,6 +207,8 @@ class _SuccessState extends StatelessWidget {
   const _SuccessState({required this.companyCode});
 
   final String companyCode;
+  static const String _driverPlayStoreUrl =
+      'https://play.google.com/store/apps/details?id=com.fleetfuel360.driver';
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +251,12 @@ class _SuccessState extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.share),
                     onPressed: () => SharePlus.instance.share(
-                      ShareParams(text: 'Join my fleet: $companyCode'),
+                      ShareParams(
+                        text: 'Join my FleetFuel360 company as a driver.\n'
+                            'Company Code: $companyCode\n\n'
+                            'Download FleetFuel360 Drivers:\n'
+                            '$_driverPlayStoreUrl',
+                      ),
                     ),
                   ),
                 ],

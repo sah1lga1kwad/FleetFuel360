@@ -9,15 +9,26 @@ import '../../../core/analytics/fleet_analytics.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/theme/app_theme.dart';
 
-class VehicleDetailScreen extends ConsumerWidget {
+class VehicleDetailScreen extends ConsumerStatefulWidget {
   const VehicleDetailScreen({super.key, required this.vehicleId});
 
   final String vehicleId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VehicleDetailScreen> createState() => _VehicleDetailScreenState();
+}
+
+class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
+  static const int _pageSize = 25;
+  int _visibleCount = _pageSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final vehicles = ref.watch(companyVehiclesProvider).valueOrNull ?? [];
-    final vehicle = vehicles.where((v) => v.vehicleId == vehicleId).firstOrNull;
+    final vehicle = vehicles
+        .where((v) => v.vehicleId == widget.vehicleId)
+        .firstOrNull;
 
     if (vehicle == null) {
       return const Scaffold(
@@ -27,13 +38,13 @@ class VehicleDetailScreen extends ConsumerWidget {
 
     final assignmentByVehicle = ref.watch(assignmentByVehicleProvider);
     final driverById = ref.watch(driverByIdProvider);
-    final assignment = assignmentByVehicle[vehicleId];
+    final assignment = assignmentByVehicle[widget.vehicleId];
     final driver = assignment != null ? driverById[assignment.driverId] : null;
 
     return Scaffold(
       appBar: AppBar(title: Text(vehicle.registrationNumber)),
       body: FutureBuilder<List<LogModel>>(
-        future: ref.read(firestoreServiceProvider).getVehicleLogs(vehicleId),
+        future: ref.read(firestoreServiceProvider).getVehicleLogs(widget.vehicleId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -53,6 +64,8 @@ class VehicleDetailScreen extends ConsumerWidget {
                   .isAfter(monthStart.subtract(const Duration(seconds: 1))))
               .toList();
           final kmDriven = FleetAnalytics.kmDriven(thisMonth);
+          final visible = logs.take(_visibleCount).toList();
+          final canLoadMore = logs.length > visible.length;
 
           return ListView(
             padding: const EdgeInsets.all(12),
@@ -119,7 +132,7 @@ class VehicleDetailScreen extends ConsumerWidget {
               const SizedBox(height: 10),
               const Text('Log History'),
               const SizedBox(height: 8),
-              ...logs.map(
+              ...visible.map(
                 (log) => Card(
                   child: ListTile(
                     onTap: () => context.push('/log/${log.logId}'),
@@ -129,6 +142,18 @@ class VehicleDetailScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (canLoadMore)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        _visibleCount += _pageSize;
+                      });
+                    },
+                    child: Text('Load More (${logs.length - visible.length} left)'),
+                  ),
+                ),
             ],
           );
         },

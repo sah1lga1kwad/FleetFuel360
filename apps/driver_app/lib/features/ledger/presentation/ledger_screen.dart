@@ -12,40 +12,46 @@ class LedgerScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cloudLogsAsync = ref.watch(ledgerLogsProvider);
-    final localLogsAsync = ref.watch(localUnsyncedLogsStreamProvider);
+    final localLogsAsync = ref.watch(localLogsStreamProvider);
+    final localLogs = localLogsAsync.valueOrNull ?? const <LogModel>[];
+
+    Widget buildLedger(List<LogModel> cloudLogs) {
+      final mergedById = <String, LogModel>{};
+      for (final log in cloudLogs) {
+        mergedById[log.logId] = log;
+      }
+      for (final log in localLogs) {
+        mergedById[log.logId] = log;
+      }
+      final orderedLogs = mergedById.values.toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final summary = _LedgerSummary.compute(orderedLogs);
+      return Column(
+        children: [
+          _SummaryCard(summary: summary),
+          const Divider(height: 1),
+          Expanded(
+            child: orderedLogs.isEmpty
+                ? _EmptyLedger()
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: orderedLogs.length,
+                    itemBuilder: (_, i) => _LedgerRow(
+                      log: orderedLogs[i],
+                      runningBalance: _runningBalance(orderedLogs, i),
+                    ),
+                  ),
+          ),
+        ],
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('My Ledger')),
       body: cloudLogsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (cloudLogs) {
-          final mergedLogs = <LogModel>[
-            ...cloudLogs,
-            ...(localLogsAsync.valueOrNull ?? const <LogModel>[]),
-          ];
-          final orderedLogs = List<LogModel>.from(mergedLogs)
-            ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-          final summary = _LedgerSummary.compute(orderedLogs);
-          return Column(
-            children: [
-              _SummaryCard(summary: summary),
-              const Divider(height: 1),
-              Expanded(
-                child: orderedLogs.isEmpty
-                    ? _EmptyLedger()
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: orderedLogs.length,
-                        itemBuilder: (_, i) => _LedgerRow(
-                          log: orderedLogs[i],
-                          runningBalance: _runningBalance(orderedLogs, i),
-                        ),
-                      ),
-              ),
-            ],
-          );
-        },
+        error: (e, _) => buildLedger(const <LogModel>[]),
+        data: buildLedger,
       ),
     );
   }
@@ -54,13 +60,14 @@ class LedgerScreen extends ConsumerWidget {
     int balance = 0;
     for (int i = 0; i <= upToIndex; i++) {
       final log = logs[i];
-      if ((log.logType == LogType.cashExpense ||
-              log.logType == LogType.fuelFill) &&
-          log.paidBy == PaidBy.driver) {
+      // DR entries: cash expenses by driver OR fuel fills
+      if ((log.logType == LogType.cashExpense && log.paidBy == PaidBy.driver) ||
+          log.logType == LogType.fuelFill) {
         balance += log.amount;
-      } else if (log.logType == LogType.paymentReceived ||
-          log.logType == LogType.advance ||
-          log.logType == LogType.loan) {
+      }
+      // CR entries: payments and advances reduce what's owed
+      else if (log.logType == LogType.paymentReceived ||
+          log.logType == LogType.advance) {
         balance -= log.amount;
       }
     }
@@ -83,13 +90,14 @@ class _LedgerSummary {
     int expenses = 0;
     int received = 0;
     for (final log in logs) {
-      if ((log.logType == LogType.cashExpense ||
-              log.logType == LogType.fuelFill) &&
-          log.paidBy == PaidBy.driver) {
+      // DR entries: cash expenses by driver + fuel fills
+      if ((log.logType == LogType.cashExpense && log.paidBy == PaidBy.driver) ||
+          log.logType == LogType.fuelFill) {
         expenses += log.amount;
-      } else if (log.logType == LogType.paymentReceived ||
-          log.logType == LogType.advance ||
-          log.logType == LogType.loan) {
+      }
+      // CR entries
+      else if (log.logType == LogType.paymentReceived ||
+          log.logType == LogType.advance) {
         received += log.amount;
       }
     }
@@ -181,8 +189,7 @@ class _SummaryTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: TextStyle(color: color, fontSize: 11)),
+          Text(label, style: TextStyle(color: color, fontSize: 11)),
           const SizedBox(height: 4),
           Text(
             AppFormatters.formatAmount(amount),
@@ -209,17 +216,19 @@ class _LedgerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDebit = (log.logType == LogType.cashExpense ||
-            log.logType == LogType.fuelFill) &&
-        log.paidBy == PaidBy.driver;
+    final isDebit =
+        log.logType == LogType.cashExpense && log.paidBy == PaidBy.driver;
+    final isFuel = log.logType == LogType.fuelFill;
     final isCredit = log.logType == LogType.paymentReceived ||
-        log.logType == LogType.advance ||
-        log.logType == LogType.loan;
+        log.logType == LogType.advance;
 
-    if (!isDebit && !isCredit) return const SizedBox.shrink();
+    // Show all financial entries (debit, fuel, credit)
+    if (!isDebit && !isFuel && !isCredit) return const SizedBox.shrink();
 
-    final entryColor = isDebit ? AppColors.expense : AppColors.income;
-    final prefix = isDebit ? 'DR' : 'CR';
+    // Fuel is a debit (money spent), so same color as expenses; DR items are red/expense color
+    final isExpenseType = isDebit || isFuel;
+    final entryColor = isExpenseType ? AppColors.expense : AppColors.income;
+    final prefix = isExpenseType ? 'DR' : 'CR';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -262,8 +271,8 @@ class _LedgerRow extends StatelessWidget {
                 ),
                 Text(
                   AppFormatters.formatRelative(log.createdAt),
-                  style: const TextStyle(
-                      color: AppColors.neutral, fontSize: 11),
+                  style:
+                      const TextStyle(color: AppColors.neutral, fontSize: 11),
                 ),
               ],
             ),
@@ -282,8 +291,7 @@ class _LedgerRow extends StatelessWidget {
               ),
               Text(
                 'Bal: ${AppFormatters.formatAmount(runningBalance.abs())}',
-                style: const TextStyle(
-                    color: AppColors.neutral, fontSize: 10),
+                style: const TextStyle(color: AppColors.neutral, fontSize: 10),
               ),
             ],
           ),

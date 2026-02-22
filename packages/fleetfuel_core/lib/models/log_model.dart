@@ -182,20 +182,67 @@ class LogModel with _$LogModel {
       return entry;
     }).toList();
 
+    String toIso(Object? value) {
+      if (value is Timestamp) return value.toDate().toIso8601String();
+      if (value is DateTime) return value.toIso8601String();
+      if (value is int) {
+        return DateTime.fromMillisecondsSinceEpoch(value).toIso8601String();
+      }
+      if (value is String) {
+        final parsed = DateTime.tryParse(value);
+        if (parsed != null) return parsed.toIso8601String();
+      }
+      return DateTime.now().toIso8601String();
+    }
+
     return LogModel.fromJson({
       ...data,
       'logId': doc.id,
+      'driverId': (data['driverId'] ?? '').toString(),
+      'vehicleId': (data['vehicleId'] ?? '').toString(),
+      'companyId': (data['companyId'] ?? '').toString(),
+      'assignmentId': (data['assignmentId'] ?? '').toString(),
       'logType': _normalizeLogType(data['logType']),
       'category': _normalizeCategory(data['category']),
       'paidBy': _normalizePaidBy(data['paidBy']),
       'paymentMode': _normalizePaymentMode(data['paymentMode']),
+      'amount': _toInt(data['amount']),
+      'currency': (data['currency'] ?? 'INR').toString(),
+      'description': (data['description'] ?? '').toString(),
+      'notes': (data['notes'] ?? '').toString(),
+      'receiptImageUrls': _toStringList(data['receiptImageUrls']),
+      'odometerReading': _toInt(data['odometerReading']),
+      'fuelQuantityLitres': _toDouble(data['fuelQuantityLitres']),
+      'fuelPricePerLitre': _toDouble(data['fuelPricePerLitre']),
+      'status': (data['status'] ?? 'active').toString(),
       'location': locationData,
       'deviceContext': deviceCtx,
       'editHistory': editHistory,
-      'createdAt': (data['createdAt'] as Timestamp).toDate().toIso8601String(),
-      'updatedAt': (data['updatedAt'] as Timestamp).toDate().toIso8601String(),
+      'createdAt': toIso(data['createdAt']),
+      'updatedAt': toIso(data['updatedAt'] ?? data['createdAt']),
     });
   }
+}
+
+int _toInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? 0;
+  return 0;
+}
+
+double _toDouble(Object? value) {
+  if (value is double) return value;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value) ?? 0.0;
+  return 0.0;
+}
+
+List<String> _toStringList(Object? value) {
+  if (value is List) {
+    return value.whereType<Object>().map((e) => e.toString()).toList();
+  }
+  return const [];
 }
 
 extension LogModelX on LogModel {

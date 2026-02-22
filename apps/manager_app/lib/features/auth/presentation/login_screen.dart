@@ -25,7 +25,11 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final googleSignIn = GoogleSignIn();
+      final googleSignIn = GoogleSignIn(
+        forceCodeForRefreshToken: true,
+      );
+      // Disconnect first to show account picker
+      await googleSignIn.disconnect();
       final googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         setState(() => _isLoading = false);

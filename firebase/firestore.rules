@@ -57,20 +57,28 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Logs: driver can CRUD their own logs
+    // Logs: driver can CRUD their own logs, manager can create for company
     match /logs/{logId} {
       allow read: if request.auth != null &&
-                  (request.auth.uid == resource.data.driverId
-                   || isManagerOfCompany(resource.data.companyId));
+                  (
+                    request.auth.uid == resource.data.driverId
+                    || request.auth.uid == get(/databases/$(database)/documents/companies/$(resource.data.companyId)).data.managerId
+                  );
       allow create: if request.auth != null &&
                     (
-                      request.auth.uid == request.resource.data.driverId ||
-                      isManagerOfCompany(request.resource.data.companyId)
+                      // Driver creates their own log
+                      request.auth.uid == request.resource.data.driverId
+                      ||
+                      // Manager creates a log for their company
+                      (
+                        request.resource.data.companyId is string &&
+                        request.auth.uid == get(/databases/$(database)/documents/companies/$(request.resource.data.companyId)).data.managerId
+                      )
                     );
       allow update: if request.auth != null &&
                     (
                       request.auth.uid == resource.data.driverId ||
-                      isManagerOfCompany(resource.data.companyId)
+                      request.auth.uid == get(/databases/$(database)/documents/companies/$(resource.data.companyId)).data.managerId
                     );
       allow delete: if false; // Soft delete only via status field
     }
@@ -100,8 +108,8 @@ service cloud.firestore {
     }
 
     function isManagerOfCompany(companyId) {
-      return get(/databases/$(database)/documents/companies/$(companyId)).data.managerId
-             == request.auth.uid;
+      let company = get(/databases/$(database)/documents/companies/$(companyId)).data;
+      return company.managerId == request.auth.uid;
     }
 
     function isCompanyMember(companyId) {

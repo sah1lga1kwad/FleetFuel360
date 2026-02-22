@@ -56,6 +56,11 @@ class SyncService {
     });
 
     try {
+      developer.log(
+        'Starting sync for log: ${localLog.localId}',
+        name: 'SyncService',
+      );
+
       String? nonFatalSyncError;
 
       // 1. Upload images
@@ -136,7 +141,17 @@ class SyncService {
         receiptUrls: receiptUrls,
       );
 
+      developer.log(
+        'Writing log to Firestore: ${logModel.logId}, driverId: ${logModel.driverId}, companyId: ${logModel.companyId}',
+        name: 'SyncService',
+      );
+
       final firestoreId = await _firestoreService.createLog(logModel);
+
+      developer.log(
+        'Successfully synced log: $firestoreId',
+        name: 'SyncService',
+      );
 
       // 4. Mark synced
       await _isar.writeTxn(() async {
@@ -148,7 +163,12 @@ class SyncService {
         await _isar.localLogs.put(localLog);
       });
     } catch (e) {
-      developer.log('Log sync failed', error: e, name: 'SyncService');
+      developer.log(
+        'Log sync failed: $e',
+        error: e,
+        name: 'SyncService',
+        stackTrace: StackTrace.current,
+      );
       final attempts = localLog.syncAttempts + 1;
       await _isar.writeTxn(() async {
         localLog.syncAttempts = attempts;
