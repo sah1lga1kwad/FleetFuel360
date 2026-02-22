@@ -41,9 +41,9 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     final canvas = Canvas(recorder);
 
     final bgColor = switch (status) {
-      DriverStatus.active => const Color(0xFF43A047),
-      DriverStatus.idle => const Color(0xFFFB8C00),
-      DriverStatus.offline => const Color(0xFF757575),
+      DriverStatus.active => AppColors.income,
+      DriverStatus.idle => AppColors.warning,
+      DriverStatus.offline => AppColors.neutral,
     };
 
     canvas.drawCircle(const Offset(40, 40), 38, Paint()..color = bgColor);

@@ -52,8 +52,8 @@ class FleetScreen extends ConsumerWidget {
                       vehicle: vehicle,
                       driver: driver,
                       status: status,
-                      onTap: () => context
-                          .push('/fleet/vehicles/${vehicle.vehicleId}'),
+                      onTap: () =>
+                          context.push('/fleet/vehicles/${vehicle.vehicleId}'),
                     );
                   },
                 );
@@ -101,6 +101,8 @@ class _ModernVehicleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       child: Card(
@@ -121,7 +123,11 @@ class _ModernVehicleCard extends StatelessWidget {
                       topLeft: Radius.circular(12),
                       topRight: Radius.circular(12),
                     ),
-                    color: AppColors.backgroundLight,
+                    color: colorScheme.surface.withValues(
+                      alpha: colorScheme.brightness == Brightness.light
+                          ? 0.9
+                          : 0.5,
+                    ),
                   ),
                   child: vehicle.vehicleImageUrl.isNotEmpty
                       ? ClipRRect(
@@ -142,8 +148,8 @@ class _ModernVehicleCard extends StatelessWidget {
                                   Icon(
                                     Icons.directions_car,
                                     size: 48,
-                                    color: AppColors.primary.withValues(
-                                        alpha: 0.3),
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.3),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
@@ -163,14 +169,13 @@ class _ModernVehicleCard extends StatelessWidget {
                               Icon(
                                 Icons.directions_car,
                                 size: 48,
-                                color:
-                                    AppColors.primary.withValues(alpha: 0.3),
+                                color: AppColors.primary.withValues(alpha: 0.3),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 vehicle.make,
-                                style: const TextStyle(
-                                    color: AppColors.neutral),
+                                style:
+                                    const TextStyle(color: AppColors.neutral),
                               ),
                             ],
                           ),
@@ -279,7 +284,11 @@ class _ModernVehicleCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.backgroundLight,
+                      color: colorScheme.surface.withValues(
+                        alpha: colorScheme.brightness == Brightness.light
+                            ? 0.9
+                            : 0.5,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -299,7 +308,7 @@ class _ModernVehicleCard extends StatelessWidget {
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: driver != null
-                                  ? Colors.black87
+                                  ? colorScheme.onSurface
                                   : AppColors.neutral,
                             ),
                             overflow: TextOverflow.ellipsis,

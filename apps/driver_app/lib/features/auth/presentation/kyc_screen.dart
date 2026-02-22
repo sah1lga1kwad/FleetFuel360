@@ -169,12 +169,17 @@ class _KYCScreenState extends ConsumerState<KYCScreen> {
                   width: double.infinity,
                   height: 140,
                   decoration: BoxDecoration(
-                    color: AppColors.backgroundLight,
+                    color: Theme.of(context).colorScheme.surface.withValues(
+                          alpha:
+                              Theme.of(context).brightness == Brightness.light
+                                  ? 0.85
+                                  : 0.45,
+                        ),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _licenseImagePath != null
                           ? AppColors.income
-                          : const Color(0xFFE0E0E0),
+                          : Theme.of(context).dividerColor,
                       width: 2,
                     ),
                   ),

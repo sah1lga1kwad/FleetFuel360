@@ -357,21 +357,30 @@ class _ModeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.backgroundLight,
+          color: isSelected
+              ? AppColors.primary
+              : colorScheme.surface.withValues(
+                  alpha: colorScheme.brightness == Brightness.light
+                      ? 0.85
+                      : 0.45,
+                ),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? AppColors.primary : const Color(0xFFE0E0E0),
+            color:
+                isSelected ? AppColors.primary : Theme.of(context).dividerColor,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.neutral,
+            color: isSelected ? Colors.white : colorScheme.onSurface,
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),

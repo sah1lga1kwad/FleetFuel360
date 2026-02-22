@@ -205,9 +205,9 @@ class _VehicleCard extends StatelessWidget {
                       width: 72,
                       height: 72,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _vehicleIcon(),
+                      errorWidget: (_, __, ___) => _vehicleIcon(context),
                     )
-                  : _vehicleIcon(),
+                  : _vehicleIcon(context),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -248,10 +248,14 @@ class _VehicleCard extends StatelessWidget {
     );
   }
 
-  Widget _vehicleIcon() => Container(
+  Widget _vehicleIcon(BuildContext context) => Container(
         width: 72,
         height: 72,
-        color: AppColors.backgroundLight,
+        color: Theme.of(context).colorScheme.surface.withValues(
+              alpha: Theme.of(context).brightness == Brightness.light
+                  ? 0.85
+                  : 0.45,
+            ),
         child: const Icon(Icons.directions_car,
             size: 40, color: AppColors.neutral),
       );
@@ -428,7 +432,12 @@ class _LogCard extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: AppColors.backgroundLight,
+                color: Theme.of(context).colorScheme.surface.withValues(
+                      alpha:
+                          Theme.of(context).brightness == Brightness.light
+                              ? 0.85
+                              : 0.45,
+                    ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(_logTypeIcon(log.logType),

@@ -109,7 +109,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: Colors.grey[100],
+                  color: Theme.of(context).colorScheme.surface.withValues(
+                        alpha: Theme.of(context).brightness == Brightness.light
+                            ? 0.8
+                            : 0.45,
+                      ),
                   child: Row(
                     children: [
                       _MetricChip(
@@ -523,12 +527,23 @@ class _MetricChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final secondaryTextColor = Theme.of(context)
+        .textTheme
+        .bodySmall
+        ?.color
+        ?.withValues(alpha: 0.8);
+
     return Expanded(
       child: Column(
         children: [
           Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-          Text(sublabel,
-              style: const TextStyle(fontSize: 11, color: AppColors.neutral)),
+          Text(
+            sublabel,
+            style: TextStyle(
+              fontSize: 11,
+              color: secondaryTextColor ?? AppColors.neutral,
+            ),
+          ),
         ],
       ),
     );
@@ -611,7 +626,11 @@ class _LogDetailSheet extends StatelessWidget {
               fit: BoxFit.cover,
               errorWidget: (_, __, ___) => Container(
                 height: 170,
-                color: AppColors.backgroundLight,
+                color: Theme.of(context).colorScheme.surface.withValues(
+                      alpha: Theme.of(context).brightness == Brightness.light
+                          ? 0.8
+                          : 0.45,
+                    ),
                 alignment: Alignment.center,
                 child: const Text('Map preview unavailable'),
               ),

@@ -9,6 +9,8 @@ import '../../../core/analytics/fleet_analytics.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/theme/app_theme.dart';
 
+enum _VehicleMenuAction { unassignDriver, deleteVehicle }
+
 class VehicleDetailScreen extends ConsumerStatefulWidget {
   const VehicleDetailScreen({super.key, required this.vehicleId});
 
@@ -21,10 +23,152 @@ class VehicleDetailScreen extends ConsumerStatefulWidget {
 class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
   static const int _pageSize = 25;
   int _visibleCount = _pageSize;
+  bool _isProcessingAction = false;
+
+  Future<bool> _confirmAction({
+    required String title,
+    required String message,
+    required String confirmText,
+    bool isDestructive = false,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: isDestructive
+                ? TextButton.styleFrom(foregroundColor: AppColors.expense)
+                : null,
+            child: Text(confirmText),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
+  }
+
+  Future<void> _unassignDriver({
+    required VehicleModel vehicle,
+    required VehicleAssignmentModel assignment,
+  }) async {
+    final confirmed = await _confirmAction(
+      title: 'Unassign Driver',
+      message:
+          'This will end the current assignment and mark it inactive in history. Continue?',
+      confirmText: 'Unassign',
+    );
+    if (!confirmed || !mounted) return;
+
+    setState(() => _isProcessingAction = true);
+    try {
+      await ref.read(firestoreServiceProvider).unassignVehicleFromDriver(
+            vehicleId: vehicle.vehicleId,
+            assignmentId: assignment.assignmentId,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Driver unassigned successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to unassign driver: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessingAction = false);
+    }
+  }
+
+  Future<void> _deleteVehicle({
+    required VehicleModel vehicle,
+    required String companyId,
+    required bool hasActiveAssignment,
+  }) async {
+    if (hasActiveAssignment) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unassign the current driver before deleting vehicle'),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await _confirmAction(
+      title: 'Delete Vehicle',
+      message:
+          'This removes the vehicle from active fleet views but preserves existing logs and assignment history.',
+      confirmText: 'Delete',
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+
+    setState(() => _isProcessingAction = true);
+    try {
+      await ref.read(firestoreServiceProvider).deleteVehicle(
+            vehicleId: vehicle.vehicleId,
+            companyId: companyId,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vehicle deleted')),
+      );
+      context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete vehicle: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessingAction = false);
+    }
+  }
+
+  Future<void> _handleMenuAction({
+    required _VehicleMenuAction action,
+    required VehicleModel vehicle,
+    required VehicleAssignmentModel? assignment,
+    required String? companyId,
+  }) async {
+    if (_isProcessingAction) return;
+    if (companyId == null || companyId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Company context not found')),
+      );
+      return;
+    }
+
+    switch (action) {
+      case _VehicleMenuAction.unassignDriver:
+        if (assignment == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No active assignment found')),
+          );
+          return;
+        }
+        await _unassignDriver(vehicle: vehicle, assignment: assignment);
+        return;
+      case _VehicleMenuAction.deleteVehicle:
+        await _deleteVehicle(
+          vehicle: vehicle,
+          companyId: companyId,
+          hasActiveAssignment: assignment != null,
+        );
+        return;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final ref = this.ref;
+    final manager = ref.watch(currentManagerProvider).valueOrNull;
     final vehicles = ref.watch(companyVehiclesProvider).valueOrNull ?? [];
     final vehicle = vehicles
         .where((v) => v.vehicleId == widget.vehicleId)
@@ -42,7 +186,43 @@ class _VehicleDetailScreenState extends ConsumerState<VehicleDetailScreen> {
     final driver = assignment != null ? driverById[assignment.driverId] : null;
 
     return Scaffold(
-      appBar: AppBar(title: Text(vehicle.registrationNumber)),
+      appBar: AppBar(
+        title: Text(vehicle.registrationNumber),
+        actions: [
+          if (_isProcessingAction)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else
+            PopupMenuButton<_VehicleMenuAction>(
+              onSelected: (action) => _handleMenuAction(
+                action: action,
+                vehicle: vehicle,
+                assignment: assignment,
+                companyId: manager?.companyId,
+              ),
+              itemBuilder: (_) => [
+                PopupMenuItem<_VehicleMenuAction>(
+                  value: _VehicleMenuAction.unassignDriver,
+                  enabled: assignment != null,
+                  child: const Text('Unassign Driver'),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem<_VehicleMenuAction>(
+                  value: _VehicleMenuAction.deleteVehicle,
+                  child: Text('Delete Vehicle'),
+                ),
+              ],
+            ),
+        ],
+      ),
       body: FutureBuilder<List<LogModel>>(
         future: ref.read(firestoreServiceProvider).getVehicleLogs(widget.vehicleId),
         builder: (context, snapshot) {
@@ -269,19 +449,19 @@ class _ExpenseBreakdown extends StatelessWidget {
         case LogCategory.fuel:
           return AppColors.fuel;
         case LogCategory.repair:
-          return Colors.redAccent;
+          return AppColors.expense;
         case LogCategory.food:
-          return Colors.orange;
+          return AppColors.warning;
         case LogCategory.toll:
-          return Colors.indigo;
+          return AppColors.primary;
         case LogCategory.tyre:
-          return Colors.teal;
+          return AppColors.income;
         case LogCategory.oil:
-          return Colors.blueGrey;
+          return AppColors.fuel.withValues(alpha: 0.75);
         case LogCategory.cleaning:
-          return Colors.lightBlue;
+          return AppColors.primary.withValues(alpha: 0.75);
         case LogCategory.fine:
-          return Colors.deepOrange;
+          return AppColors.expense.withValues(alpha: 0.75);
         case LogCategory.other:
           return AppColors.neutral;
       }
@@ -332,17 +512,31 @@ class _StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final secondaryText = Theme.of(context)
+        .textTheme
+        .bodySmall
+        ?.color
+        ?.withValues(alpha: 0.8);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
+        color: colorScheme.surface.withValues(
+          alpha: colorScheme.brightness == Brightness.light ? 0.85 : 0.45,
+        ),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: const TextStyle(fontSize: 12, color: AppColors.neutral)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: secondaryText ?? AppColors.neutral,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
         ],

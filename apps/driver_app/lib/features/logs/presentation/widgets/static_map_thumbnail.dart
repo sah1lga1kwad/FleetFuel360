@@ -26,7 +26,7 @@ class StaticMapThumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasLocation = latitude != 0.0 || longitude != 0.0;
     if (!hasLocation) {
-      return _placeholder();
+      return _placeholder(context);
     }
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -49,21 +49,25 @@ class StaticMapThumbnail extends StatelessWidget {
             width: resolvedWidth,
             height: resolvedHeight,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _placeholder(),
+            errorBuilder: (_, __, ___) => _placeholder(context),
           ),
         );
       },
     );
   }
 
-  Widget _placeholder() {
+  Widget _placeholder(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
+        color: colorScheme.surface.withValues(
+          alpha: colorScheme.brightness == Brightness.light ? 0.85 : 0.45,
+        ),
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

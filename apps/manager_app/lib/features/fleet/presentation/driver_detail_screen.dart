@@ -351,22 +351,6 @@ class DriverDetailScreen extends ConsumerWidget {
     }
   }
 
-  Color _logTypeColor(LogType type) {
-    switch (type) {
-      case LogType.fuelFill:
-        return AppColors.fuel;
-      case LogType.cashExpense:
-        return AppColors.expense;
-      case LogType.paymentReceived:
-        return AppColors.income;
-      case LogType.advance:
-        return AppColors.primary;
-      case LogType.loan:
-        return AppColors.warning;
-      case LogType.other:
-        return AppColors.neutral;
-    }
-  }
 }
 
 class _SummaryChip extends StatelessWidget {
@@ -377,10 +361,14 @@ class _SummaryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
+        color: colorScheme.surface.withValues(
+          alpha: colorScheme.brightness == Brightness.light ? 0.85 : 0.45,
+        ),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(

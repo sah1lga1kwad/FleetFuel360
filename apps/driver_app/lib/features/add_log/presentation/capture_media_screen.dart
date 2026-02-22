@@ -345,15 +345,19 @@ class _CaptureButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 90,
         height: 80,
         decoration: BoxDecoration(
-          color: AppColors.backgroundLight,
+          color: colorScheme.surface.withValues(
+            alpha: colorScheme.brightness == Brightness.light ? 0.85 : 0.45,
+          ),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE0E0E0)),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

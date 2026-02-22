@@ -29,6 +29,9 @@ class AppColors {
 class AppTheme {
   static ThemeData get light {
     final base = ThemeData.light(useMaterial3: true);
+    const inputBorderColor = Color(0x33000000);
+    const dividerColor = Color(0x14000000);
+
     return base.copyWith(
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
@@ -41,12 +44,27 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: AppColors.backgroundLight,
       textTheme: base.textTheme.copyWith(
-        displayLarge: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        displayMedium: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-        displaySmall: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        bodyLarge: const TextStyle(fontSize: 14),
-        bodyMedium: const TextStyle(fontSize: 14),
-        bodySmall: const TextStyle(fontSize: 12),
+        displayLarge:
+            const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimaryLight),
+        displayMedium:
+            const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimaryLight),
+        displaySmall:
+            const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimaryLight),
+        bodyLarge:
+            const TextStyle(fontSize: 14, color: AppColors.textPrimaryLight),
+        bodyMedium:
+            const TextStyle(fontSize: 14, color: AppColors.textPrimaryLight),
+        bodySmall:
+            const TextStyle(fontSize: 12, color: AppColors.textSecondaryLight),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.cardLight,
@@ -71,11 +89,11 @@ class AppTheme {
         fillColor: AppColors.backgroundLight,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+          borderSide: const BorderSide(color: inputBorderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+          borderSide: const BorderSide(color: inputBorderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -118,7 +136,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       dividerTheme: const DividerThemeData(
-        color: Color(0xFFEEEEEE),
+        color: dividerColor,
         thickness: 1,
       ),
     );
@@ -126,6 +144,9 @@ class AppTheme {
 
   static ThemeData get dark {
     final base = ThemeData.dark(useMaterial3: true);
+    const inputBorderColor = Color(0x66FFFFFF);
+    const dividerColor = Color(0x1FFFFFFF);
+
     return base.copyWith(
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
@@ -137,7 +158,20 @@ class AppTheme {
         error: AppColors.expense,
       ),
       scaffoldBackgroundColor: AppColors.backgroundDark,
-      textTheme: base.textTheme,
+      textTheme: base.textTheme.copyWith(
+        displayLarge:
+            const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        displayMedium:
+            const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+        displaySmall:
+            const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        bodyLarge:
+            const TextStyle(fontSize: 14, color: AppColors.textPrimaryDark),
+        bodyMedium:
+            const TextStyle(fontSize: 14, color: AppColors.textPrimaryDark),
+        bodySmall:
+            const TextStyle(fontSize: 12, color: AppColors.textSecondaryDark),
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.cardDark,
         foregroundColor: AppColors.textPrimaryDark,
@@ -161,11 +195,11 @@ class AppTheme {
         fillColor: AppColors.surfaceDark,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF444444)),
+          borderSide: const BorderSide(color: inputBorderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF444444)),
+          borderSide: const BorderSide(color: inputBorderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -196,8 +230,15 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surfaceDark,
+        selectedColor: AppColors.primary.withValues(alpha: 0.25),
+        labelStyle: const TextStyle(fontSize: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
       dividerTheme: const DividerThemeData(
-        color: Color(0xFF333333),
+        color: dividerColor,
         thickness: 1,
       ),
     );

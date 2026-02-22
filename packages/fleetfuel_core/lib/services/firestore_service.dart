@@ -426,7 +426,10 @@ class FirestoreService {
         .collection('vehicles')
         .where('companyId', isEqualTo: companyId)
         .snapshots()
-        .map((snap) => snap.docs.map(VehicleModel.fromFirestore).toList());
+        .map((snap) => snap.docs
+            .map(VehicleModel.fromFirestore)
+            .where((vehicle) => vehicle.isActive)
+            .toList());
   }
 
   Stream<List<VehicleAssignmentModel>> watchActiveAssignments(
@@ -714,6 +717,82 @@ class FirestoreService {
 
     await batch.commit();
     return assignmentRef.id;
+  }
+
+  Future<void> unassignVehicleFromDriver({
+    required String vehicleId,
+    required String assignmentId,
+    int? endOdometerReading,
+  }) async {
+    final vehicleRef = _db.collection('vehicles').doc(vehicleId);
+    final assignmentRef = _db.collection('vehicleAssignments').doc(assignmentId);
+
+    await _db.runTransaction((txn) async {
+      final vehicleSnap = await txn.get(vehicleRef);
+      if (!vehicleSnap.exists) {
+        throw StateError('Vehicle not found');
+      }
+
+      final assignmentSnap = await txn.get(assignmentRef);
+      if (!assignmentSnap.exists) {
+        throw StateError('Active assignment not found');
+      }
+
+      final assignment =
+          VehicleAssignmentModel.fromFirestore(assignmentSnap);
+      if (!assignment.isActive) {
+        throw StateError('Assignment is already inactive');
+      }
+      if (assignment.vehicleId != vehicleId) {
+        throw StateError('Assignment does not belong to selected vehicle');
+      }
+
+      txn.update(assignmentRef, {
+        'isActive': false,
+        'endDate': FieldValue.serverTimestamp(),
+        'endOdometerReading': endOdometerReading,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      txn.update(vehicleRef, {
+        'currentDriverId': null,
+        'currentAssignmentId': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> deleteVehicle({
+    required String vehicleId,
+    required String companyId,
+  }) async {
+    final vehicleRef = _db.collection('vehicles').doc(vehicleId);
+    final activeAssignmentSnap = await _db
+        .collection('vehicleAssignments')
+        .where('vehicleId', isEqualTo: vehicleId)
+        .limit(20)
+        .get();
+
+    final hasActiveAssignment = activeAssignmentSnap.docs
+        .map(VehicleAssignmentModel.fromFirestore)
+        .any((assignment) => assignment.isActive);
+
+    if (hasActiveAssignment) {
+      throw StateError('Unassign the driver before deleting this vehicle');
+    }
+
+    final batch = _db.batch();
+    batch.update(vehicleRef, {
+      'isActive': false,
+      'currentDriverId': null,
+      'currentAssignmentId': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(_db.collection('companies').doc(companyId), {
+      'vehicleIds': FieldValue.arrayRemove([vehicleId]),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
   }
 }
 

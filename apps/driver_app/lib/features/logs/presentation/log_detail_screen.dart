@@ -355,14 +355,27 @@ class _PhotoCarousel extends StatelessWidget {
                       : Container(
                           width: 180,
                           height: 160,
-                          color: AppColors.backgroundLight,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surface
+                              .withValues(
+                                alpha: Theme.of(context).brightness ==
+                                        Brightness.light
+                                    ? 0.85
+                                    : 0.45,
+                              ),
                           child: const Center(
                               child: CircularProgressIndicator()),
                         ),
                   errorBuilder: (_, __, ___) => Container(
                     width: 180,
                     height: 160,
-                    color: AppColors.backgroundLight,
+                    color: Theme.of(context).colorScheme.surface.withValues(
+                          alpha:
+                              Theme.of(context).brightness == Brightness.light
+                                  ? 0.85
+                                  : 0.45,
+                        ),
                     child: const Icon(Icons.broken_image,
                         color: AppColors.neutral),
                   ),

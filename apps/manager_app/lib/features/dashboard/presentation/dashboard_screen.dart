@@ -106,7 +106,7 @@ class DashboardScreen extends ConsumerWidget {
                       data: (value) {
                         if (value == ConnectivityResult.none) {
                           return Container(
-                            color: Colors.orange,
+                            color: AppColors.warning,
                             padding: const EdgeInsets.symmetric(
                               vertical: 8,
                               horizontal: 16,
@@ -201,7 +201,7 @@ class DashboardScreen extends ConsumerWidget {
                                     icon: Icons.people,
                                     color: activeToday == drivers.length
                                         ? AppColors.income
-                                        : Colors.amber,
+                                        : AppColors.warning,
                                     onTap: () => context.go('/fleet'),
                                   ),
                                   _StatusCard(
@@ -265,18 +265,21 @@ class DashboardScreen extends ConsumerWidget {
                                           vertical: 6,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.white,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surface,
                                           borderRadius:
                                               BorderRadius.circular(20),
-                                          boxShadow: const [
+                                          boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black26,
+                                              color: Colors.black.withValues(
+                                                  alpha: 0.16),
                                               blurRadius: 8,
                                               offset: Offset(0, 2),
                                             ),
                                           ],
                                         ),
-                                        child: const Text(
+                                      child: const Text(
                                           'Full Map ->',
                                           style: TextStyle(
                                               fontWeight: FontWeight.w600),

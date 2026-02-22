@@ -106,9 +106,9 @@ class _VehicleDetailCard extends StatelessWidget {
                     width: double.infinity,
                     height: 180,
                     fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => _placeholder(),
-                  )
-                : _placeholder(),
+                      errorWidget: (_, __, ___) => _placeholder(context),
+                    )
+                  : _placeholder(context),
           ),
           Padding(
             padding: const EdgeInsets.all(16),
@@ -198,10 +198,14 @@ class _VehicleDetailCard extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() => Container(
+  Widget _placeholder(BuildContext context) => Container(
         width: double.infinity,
         height: 180,
-        color: AppColors.backgroundLight,
+        color: Theme.of(context).colorScheme.surface.withValues(
+              alpha: Theme.of(context).brightness == Brightness.light
+                  ? 0.85
+                  : 0.45,
+            ),
         child: const Icon(Icons.directions_car,
             size: 64, color: AppColors.neutral),
       );
