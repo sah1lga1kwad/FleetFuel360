@@ -148,44 +148,36 @@ class _ManagerShell extends StatelessWidget {
         }
         return false;
       },
-      child: PopScope<void>(
-        canPop: currentIndex == 0,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && currentIndex != 0) {
-            context.go('/dashboard');
-          }
-        },
-        child: Scaffold(
-          body: child,
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: currentIndex,
-            onDestinationSelected: (index) {
-              switch (index) {
-                case 0:
-                  context.go('/dashboard');
-                  break;
-                case 1:
-                  context.go('/map');
-                  break;
-                case 2:
-                  context.go('/fleet');
-                  break;
-                case 3:
-                  context.go('/finance');
-                  break;
-              }
-            },
-            destinations: const [
-              NavigationDestination(
-                  icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
-              NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Map'),
-              NavigationDestination(
-                  icon: Icon(Icons.local_shipping_outlined), label: 'Fleet'),
-              NavigationDestination(
-                  icon: Icon(Icons.account_balance_wallet_outlined),
-                  label: 'Finance'),
-            ],
-          ),
+      child: Scaffold(
+        body: child,
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: currentIndex,
+          onDestinationSelected: (index) {
+            switch (index) {
+              case 0:
+                context.go('/dashboard');
+                break;
+              case 1:
+                context.go('/map');
+                break;
+              case 2:
+                context.go('/fleet');
+                break;
+              case 3:
+                context.go('/finance');
+                break;
+            }
+          },
+          destinations: const [
+            NavigationDestination(
+                icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+            NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Map'),
+            NavigationDestination(
+                icon: Icon(Icons.local_shipping_outlined), label: 'Fleet'),
+            NavigationDestination(
+                icon: Icon(Icons.account_balance_wallet_outlined),
+                label: 'Finance'),
+          ],
         ),
       ),
     );

@@ -31,7 +31,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.initState();
     if (widget.showManagerError) {
       _error =
-          'This account is registered as a manager. Please use FleetFuel360 Companies.';
+          'This account is registered as a manager. Please use FleetFuel360 Manager.';
     }
   }
 
@@ -246,6 +246,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 18),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ChoiceChip(
                       label: const Text('Sign Up'),
@@ -425,11 +426,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   width: double.infinity,
                   height: 52,
                   child: OutlinedButton.icon(
-                    onPressed:
-                        _isLoading ? null : _showGooglePlaceholderDialog,
+                    onPressed: _isLoading ? null : _showGooglePlaceholderDialog,
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(
-                          color: onSurface.withValues(alpha: 0.3)),
+                      side: BorderSide(color: onSurface.withValues(alpha: 0.3)),
                       foregroundColor: onSurface,
                     ),
                     icon: const Icon(Icons.g_mobiledata, size: 28),

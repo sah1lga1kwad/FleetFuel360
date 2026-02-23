@@ -72,13 +72,12 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Row(
                     children: [
-                      ActionChip(
-                        label: Text(
-                          _range == null
-                              ? 'Date range'
-                              : '${AppFormatters.formatDate(_range!.start)} - ${AppFormatters.formatDate(_range!.end)}',
-                        ),
-                        onPressed: () async {
+                      _FilterPill(
+                        label: _range == null
+                            ? 'Date range'
+                            : '${AppFormatters.formatDate(_range!.start)} - ${AppFormatters.formatDate(_range!.end)}',
+                        isSelected: _range != null,
+                        onTap: () async {
                           final picked = await showDateRangePicker(
                             context: context,
                             firstDate: DateTime.now()
@@ -92,16 +91,18 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                         },
                       ),
                       const SizedBox(width: 8),
-                      ActionChip(
-                        label: Text('Drivers (${_selectedDriverIds.length})'),
-                        onPressed: () => _pickDrivers(context, drivers),
+                      _FilterPill(
+                        label: 'Drivers (${_selectedDriverIds.length})',
+                        isSelected: _selectedDriverIds.isNotEmpty,
+                        onTap: () => _pickDrivers(context, drivers),
                       ),
                       const SizedBox(width: 8),
-                      ActionChip(
-                        label: Text(_selectedType == null
+                      _FilterPill(
+                        label: _selectedType == null
                             ? 'Type: All'
-                            : _selectedType!.name),
-                        onPressed: () => _pickType(context),
+                            : _selectedType!.name,
+                        isSelected: _selectedType != null,
+                        onTap: () => _pickType(context),
                       ),
                     ],
                   ),
@@ -278,6 +279,54 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
           log: log,
           driver: driver,
           scrollController: sc,
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final selectedBg = colorScheme.primary.withValues(alpha: 0.15);
+    final unselectedBg = colorScheme.surface.withValues(
+      alpha: colorScheme.brightness == Brightness.light ? 0.9 : 0.55,
+    );
+    final selectedBorder = colorScheme.primary.withValues(alpha: 0.5);
+    final unselectedBorder = Theme.of(context).dividerColor;
+    final selectedText = colorScheme.primary;
+    final unselectedText = colorScheme.onSurface.withValues(alpha: 0.85);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(22),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? selectedBg : unselectedBg,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isSelected ? selectedBorder : unselectedBorder,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? selectedText : unselectedText,
+          ),
         ),
       ),
     );

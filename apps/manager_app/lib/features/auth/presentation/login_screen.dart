@@ -238,7 +238,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 18),
                 const Text(
-                  'FleetFuel360 Companies',
+                  'FleetFuel360 Manager',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -438,11 +438,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 52,
                   child: OutlinedButton.icon(
-                    onPressed:
-                        _isLoading ? null : _showGooglePlaceholderDialog,
+                    onPressed: _isLoading ? null : _showGooglePlaceholderDialog,
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(
-                          color: onSurface.withValues(alpha: 0.3)),
+                      side: BorderSide(color: onSurface.withValues(alpha: 0.3)),
                       foregroundColor: onSurface,
                     ),
                     icon: const Icon(Icons.g_mobiledata, size: 28),

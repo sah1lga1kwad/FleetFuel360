@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:fleetfuel_core/fleetfuel_core.dart';
 
@@ -12,11 +14,98 @@ import '../../../core/utils/driver_status.dart';
 class FleetScreen extends ConsumerWidget {
   const FleetScreen({super.key});
 
+  static const String _driverPlayStoreUrl =
+      'https://play.google.com/store/apps/details?id=com.fleetfuel360.driver';
+
+  String _inviteText(String code) {
+    return 'Join my FleetFuel360 company as a driver.\n'
+        'Company Code: $code\n\n'
+        'Download FleetFuel360 Drivers:\n'
+        '$_driverPlayStoreUrl';
+  }
+
+  void _showInviteDriverSheet(BuildContext context, CompanyModel company) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Add Driver',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text('Share this company code with your driver:'),
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Theme.of(context).colorScheme.surface.withValues(
+                        alpha:
+                            Theme.of(context).brightness == Brightness.light
+                                ? 0.9
+                                : 0.45,
+                      ),
+                ),
+                child: Text(
+                  company.companyCode,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: company.companyCode),
+                        );
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Company code copied')),
+                        );
+                      },
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copy Code'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => SharePlus.instance.share(
+                        ShareParams(text: _inviteText(company.companyCode)),
+                      ),
+                      icon: const Icon(Icons.share),
+                      label: const Text('Share Invite'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final vehiclesAsync = ref.watch(companyVehiclesProvider);
     final driversMap = ref.watch(driverByIdProvider);
     final assignmentByVehicle = ref.watch(assignmentByVehicleProvider);
+    final company = ref.watch(managerCompanyProvider).valueOrNull;
 
     return DefaultTabController(
       length: 2,
@@ -29,6 +118,33 @@ class FleetScreen extends ConsumerWidget {
               Tab(text: 'Drivers'),
             ],
           ),
+        ),
+        floatingActionButton: Builder(
+          builder: (context) {
+            final tabController = DefaultTabController.of(context);
+            return AnimatedBuilder(
+              animation: tabController.animation!,
+              builder: (_, __) {
+                final isVehiclesTab = tabController.index == 0;
+                if (isVehiclesTab) {
+                  return FloatingActionButton.extended(
+                    onPressed: () => context.push('/settings/add-vehicle'),
+                    shape: const StadiumBorder(),
+                    icon: const Icon(Icons.add_road),
+                    label: const Text('Add Vehicle'),
+                  );
+                }
+                return FloatingActionButton.extended(
+                  onPressed: company == null
+                      ? null
+                      : () => _showInviteDriverSheet(context, company),
+                  shape: const StadiumBorder(),
+                  icon: const Icon(Icons.person_add_alt_1),
+                  label: const Text('Add Driver'),
+                );
+              },
+            );
+          },
         ),
         body: TabBarView(
           children: [

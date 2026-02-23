@@ -1155,13 +1155,13 @@ class ManagerPlaceholderApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'FleetFuel360 Companies',
+      title: 'FleetFuel360 Manager',
       home: Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('FleetFuel360 Companies', style: TextStyle(fontSize: 24)),
+              const Text('FleetFuel360 Manager', style: TextStyle(fontSize: 24)),
               const SizedBox(height: 16),
               const Text('Phase 2 — Coming Soon'),
             ],

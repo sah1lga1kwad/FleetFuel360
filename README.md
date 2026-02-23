@@ -5,7 +5,7 @@ A dual-app fleet management system for commercial vehicle fleets.
 ## Apps
 
 - **FleetFuel360 Drivers** (`apps/driver_app`) — Fuel and expense tracking for drivers
-- **FleetFuel360 Companies** (`apps/manager_app`) — Fleet management dashboard (Phase 2)
+- **FleetFuel360 Manager** (`apps/manager_app`) — Fleet management dashboard (Phase 2)
 
 ## Shared Package
 

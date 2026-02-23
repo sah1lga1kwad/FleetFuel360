@@ -78,3 +78,5 @@ firebase/**/.firebaserc
 # OS
 .DS_Store
 Thumbs.db
+PROJECTREPORT.md
+suggestedchangesforreport.md

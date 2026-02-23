@@ -26,6 +26,7 @@ class DriverDetailScreen extends ConsumerWidget {
     final drivers = ref.watch(companyDriversProvider).valueOrNull ?? [];
     final manager = ref.watch(currentManagerProvider).valueOrNull;
     final companyId = manager?.companyId;
+    final activeAssignment = ref.watch(assignmentByDriverProvider)[driverId];
     final driver = drivers.where((d) => d.userId == driverId).firstOrNull;
 
     if (driver == null) {
@@ -34,6 +35,74 @@ class DriverDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(driver.name)),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: manager == null || companyId == null
+          ? null
+          : Builder(
+              builder: (context) {
+                final isAssigned = activeAssignment != null;
+
+                Future<void> onActionPressed() async {
+                  if (activeAssignment == null) {
+                    _showAssignVehicleSheet(context, driver);
+                    return;
+                  }
+
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Unassign Vehicle'),
+                      content: Text(
+                        'Unassign ${driver.name} from vehicle ${activeAssignment.vehicleId}?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(false),
+                          child: const Text('Cancel'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(true),
+                          child: const Text('Unassign'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm != true) return;
+                  try {
+                    await ref
+                        .read(firestoreServiceProvider)
+                        .unassignVehicleFromDriver(
+                          vehicleId: activeAssignment.vehicleId,
+                          assignmentId: activeAssignment.assignmentId,
+                        );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${driver.name} unassigned successfully'),
+                      ),
+                    );
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to unassign: $e')),
+                    );
+                  }
+                }
+
+                return FloatingActionButton.extended(
+                  onPressed: onActionPressed,
+                  shape: const StadiumBorder(),
+                  icon: Icon(
+                    isAssigned
+                        ? Icons.link_off
+                        : Icons.assignment_ind_outlined,
+                  ),
+                  label: Text(isAssigned ? 'Unassign' : 'Assign'),
+                );
+              },
+            ),
       body: FutureBuilder<List<dynamic>>(
         future: Future.wait([
           ref.read(firestoreServiceProvider).getDriverLogs(
@@ -74,12 +143,14 @@ class DriverDetailScreen extends ConsumerWidget {
           final hasMapPoint = trail.isNotEmpty || lastLoc != null;
           final mapCenter = trail.isNotEmpty
               ? trail.last
-              : LatLng(lastLoc!.latitude, lastLoc.longitude);
+              : (lastLoc != null
+                  ? LatLng(lastLoc.latitude, lastLoc.longitude)
+                  : null);
           final mapMarkers = hasMapPoint
               ? {
                   Marker(
                     markerId: MarkerId(driver.userId),
-                    position: mapCenter,
+                    position: mapCenter!,
                     infoWindow: InfoWindow(title: driver.name),
                   ),
                 }
@@ -175,7 +246,7 @@ class DriverDetailScreen extends ConsumerWidget {
                                 child: Text('Location not available'))
                             : GoogleMap(
                                 initialCameraPosition: CameraPosition(
-                                  target: mapCenter,
+                                  target: mapCenter!,
                                   zoom: 14,
                                 ),
                                 markers: mapMarkers,
@@ -221,13 +292,16 @@ class DriverDetailScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
                 children: [
                   _SummaryChip(label: 'Logs', value: '${todayLogs.length}'),
                   _SummaryChip(
-                      label: 'Km',
-                      value: '${FleetAnalytics.kmDriven(todayLogs)} km'),
+                    label: 'Km',
+                    value: '${FleetAnalytics.kmDriven(todayLogs)} km',
+                  ),
                   _SummaryChip(
                     label: 'Expenses',
                     value: AppFormatters.formatAmount(expenseToday),
@@ -331,6 +405,14 @@ class DriverDetailScreen extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       builder: (_) => _RecordPaymentSheet(driver: driver),
+    );
+  }
+
+  void _showAssignVehicleSheet(BuildContext context, UserModel driver) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _AssignVehicleSheet(driver: driver),
     );
   }
 
@@ -550,6 +632,128 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
                 ? const SizedBox(
                     height: 16, width: 16, child: CircularProgressIndicator())
                 : const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssignVehicleSheet extends ConsumerStatefulWidget {
+  const _AssignVehicleSheet({required this.driver});
+
+  final UserModel driver;
+
+  @override
+  ConsumerState<_AssignVehicleSheet> createState() => _AssignVehicleSheetState();
+}
+
+class _AssignVehicleSheetState extends ConsumerState<_AssignVehicleSheet> {
+  String? _vehicleId;
+  final _startOdoCtrl = TextEditingController(text: '0');
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _startOdoCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final manager = ref.watch(currentManagerProvider).valueOrNull;
+    final companyId = manager?.companyId;
+    final vehicles = ref.watch(companyVehiclesProvider).valueOrNull ?? [];
+    final assignmentByVehicle = ref.watch(assignmentByVehicleProvider);
+
+    final unassignedVehicles = vehicles.where((vehicle) {
+      final hasActiveAssignment = assignmentByVehicle[vehicle.vehicleId] != null;
+      final linkedDriver = vehicle.currentDriverId;
+      return !hasActiveAssignment && (linkedDriver == null || linkedDriver.isEmpty);
+    }).toList();
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Assign Vehicle to ${widget.driver.name}',
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _vehicleId,
+            decoration: const InputDecoration(labelText: 'Unassigned vehicle'),
+            items: unassignedVehicles
+                .map(
+                  (vehicle) => DropdownMenuItem(
+                    value: vehicle.vehicleId,
+                    child: Text(vehicle.registrationNumber),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() => _vehicleId = value),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _startOdoCtrl,
+            keyboardType: TextInputType.number,
+            decoration:
+                const InputDecoration(labelText: 'Start odometer reading'),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: _submitting ||
+                    _vehicleId == null ||
+                    companyId == null ||
+                    manager == null
+                ? null
+                : () async {
+                    setState(() => _submitting = true);
+                    try {
+                      await ref
+                          .read(firestoreServiceProvider)
+                          .assignVehicleToDriver(
+                            vehicleId: _vehicleId!,
+                            driverId: widget.driver.userId,
+                            companyId: companyId,
+                            startOdometerReading:
+                                int.tryParse(_startOdoCtrl.text) ?? 0,
+                            managerId: manager.userId,
+                          );
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Vehicle assigned to ${widget.driver.name}',
+                          ),
+                        ),
+                      );
+                      Navigator.pop(context);
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to assign vehicle: $e')),
+                      );
+                    } finally {
+                      if (mounted) setState(() => _submitting = false);
+                    }
+                  },
+            child: _submitting
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Assign Vehicle'),
           ),
         ],
       ),

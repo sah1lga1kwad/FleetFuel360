@@ -88,7 +88,7 @@ class DashboardScreen extends ConsumerWidget {
           slivers: [
             SliverAppBar(
               floating: true,
-              title: const Text('Dashboard'),
+              title: const Text('FleetFuel360 Dashboard'),
               actions: [
                 IconButton(
                   onPressed: () => context.push('/settings'),
@@ -171,9 +171,11 @@ class DashboardScreen extends ConsumerWidget {
                         }
 
                         final markers = <Marker>{};
+                        var driversWithLocation = 0;
                         for (final driver in drivers) {
                           final loc = driver.lastKnownLocation;
                           if (loc == null) continue;
+                          driversWithLocation++;
                           markers.add(
                             Marker(
                               markerId: MarkerId(driver.userId),
@@ -272,14 +274,14 @@ class DashboardScreen extends ConsumerWidget {
                                               BorderRadius.circular(20),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withValues(
-                                                  alpha: 0.16),
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.16),
                                               blurRadius: 8,
                                               offset: Offset(0, 2),
                                             ),
                                           ],
                                         ),
-                                      child: const Text(
+                                        child: const Text(
                                           'Full Map ->',
                                           style: TextStyle(
                                               fontWeight: FontWeight.w600),
@@ -290,18 +292,28 @@ class DashboardScreen extends ConsumerWidget {
                                 ],
                               ),
                             ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Showing $driversWithLocation of ${drivers.length} drivers with live location',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: AppColors.neutral),
+                            ),
                             const SizedBox(height: 12),
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
                               children: [
                                 FilledButton.icon(
-                                  onPressed: () => context.push('/settings/add-vehicle'),
+                                  onPressed: () =>
+                                      context.push('/settings/add-vehicle'),
                                   icon: const Icon(Icons.add_road),
                                   label: const Text('Add Vehicle'),
                                 ),
                                 OutlinedButton.icon(
-                                  onPressed: () => context.push('/settings/assign-vehicle'),
+                                  onPressed: () =>
+                                      context.push('/settings/assign-vehicle'),
                                   icon: const Icon(Icons.swap_horiz),
                                   label: const Text('Assign Vehicle'),
                                 ),
@@ -383,9 +395,13 @@ class DashboardScreen extends ConsumerWidget {
                                   ),
                                   title: Text(
                                     '${driver?.name ?? 'Unknown'} • ${assignment?.vehicleId ?? log.vehicleId}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   subtitle: Text(
                                     '${log.logType.name} • ${AppFormatters.formatRelative(log.createdAt)}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   trailing: Text(
                                       AppFormatters.formatAmount(log.amount)),
@@ -451,19 +467,38 @@ class _StatusCard extends StatelessWidget {
                     Icon(icon, color: color),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(title,
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ],
                 ),
                 const Spacer(),
-                Text(value,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    maxLines: 1,
                     style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold)),
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.neutral)),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.neutral,
+                  ),
+                ),
               ],
             ),
           ),

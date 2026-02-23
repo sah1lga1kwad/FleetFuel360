@@ -8,7 +8,7 @@
 
 ## 1. What This App Is
 
-FleetFuel360 Companies is used by the **owner or manager of a fleet business**. Their daily reality:
+FleetFuel360 Manager is used by the **owner or manager of a fleet business**. Their daily reality:
 
 - They are not in the vehicle. They are at an office, at home, or on their phone.
 - They need to know: where are my drivers right now? What are they spending? How much do I owe them?

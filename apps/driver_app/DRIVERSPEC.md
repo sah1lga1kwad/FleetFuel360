@@ -10,7 +10,7 @@
 
 FleetFuel360 is a dual-app fleet management system:
 - **FleetFuel360 Drivers** — Used by drivers to log fuel, expenses, and track their activity
-- **FleetFuel360 Companies** — Used by fleet managers to monitor drivers, vehicles, logs, and finances
+- **FleetFuel360 Manager** — Used by fleet managers to monitor drivers, vehicles, logs, and finances
 
 **Phase 1 builds:** Shared Firebase backend + Driver App only.  
 **Phase 2 builds:** Manager App (after Driver App is complete and tested).
