@@ -80,3 +80,8 @@ firebase/**/.firebaserc
 Thumbs.db
 PROJECTREPORT.md
 suggestedchangesforreport.md
+
+# Ignore all Markdown except README/readme files
+*.md
+!**/README.md
+!**/readme.md
